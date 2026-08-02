@@ -33,6 +33,9 @@ export function render() {
     ? Math.round(store.prior.reduce((s, p) => s + p.views, 0) / store.prior.length)
     : b.priorAvg;
   const clearsQuarter = store.album.filter(a => a.yt_views >= priorAvg / 4).length;
+  const catalogAvg = store.catalog.length
+    ? Math.round(store.catalog.reduce((sum, t) => sum + t.views, 0) / store.catalog.length)
+    : 0;
 
   return `
 ${card(`
@@ -85,16 +88,27 @@ ${card(`
   </div>`)}
 
 ${card(`
-  <h3>The Yawitazah pattern — the thing that is working</h3>
-  <p class="muted sm">Every record Yawitazah appears on overperforms its neighbours.</p>
+  <h3>The Yawitazah pattern — and why it is weaker than it looks</h3>
+  <span class="badge p-warn">claim revised</span>
+  <p class="muted sm" style="margin-top:10px">The five tracks featuring Yawitazah, against the
+  2026 album average and against the catalog as a whole.</p>
   <div id="zah-chart">${hbar(zahRows, {
-      rowH: 29, padL: 190, ref: b.musicAvg, refLabel: 'album avg',
+      rowH: 29, padL: 190, ref: catalogAvg, refLabel: 'catalog avg ' + fmt(catalogAvg),
       aria: 'Tracks featuring Yawitazah' })}</div>
-  <div class="callout" style="margin-top:12px">
-    Feature average <strong>${fmt(s.featureAvg)}</strong> vs album average
-    <strong>${fmt(s.albumAvg)}</strong> — roughly
-    <strong>${(s.featureAvg / (s.albumAvg || 1)).toFixed(1)}×</strong>.
-    Whatever is happening on those records is the label's most repeatable asset.
+  <div class="grid g3" style="margin-top:14px">
+    ${stat('Feature average', fmt(s.featureAvg), '5 tracks')}
+    ${stat('vs 2026 album', (s.featureAvg / (s.albumAvg || 1)).toFixed(1) + '×', 'the flattering comparison', 'good')}
+    ${stat('vs whole catalog', (s.featureAvg / (catalogAvg || 1)).toFixed(2) + '×', 'the honest one', 'warn')}
+  </div>
+  <div class="callout" style="margin-top:14px">
+    <p class="sm" style="margin:0 0 .6em"><strong>Read this carefully before repeating it.</strong>
+    The often-quoted "7.5× lift" measures these tracks against the 2026 album average
+    (${fmt(s.albumAvg)}), which is the weakest period in the label's history. Measured against the
+    full catalog (${fmt(catalogAvg)}), the same five tracks land at roughly par.</p>
+    <p class="sm muted" style="margin:0">What survives: within the 2026 album, the Yawitazah track is
+    the best performer — but that is a sample of one. Ring The Alarm and Musick Industry are genuinely
+    top-15 records. The honest position is that this is a signal worth testing deliberately, not a
+    proven pattern to build a release strategy on.</p>
   </div>`)}
 
 ${card(`
