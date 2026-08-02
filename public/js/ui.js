@@ -138,3 +138,34 @@ export const stat = (k, v, note, cls = '') =>
   (note ? `<div class="n">${note}</div>` : '') + '</div>';
 
 export const card = (inner, cls = '') => `<section class="card ${cls}">${inner}</section>`;
+
+/* ---------- artwork ---------- */
+
+/** YouTube stills. maxres isn't always generated; hq always is, so fall back. */
+export const art    = id => `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`;
+export const artHq  = id => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+
+export const artImg = (id, alt = '', cls = '') => id
+  ? `<img class="${cls}" src="${art(id)}" alt="${esc(alt)}" loading="lazy"
+       onerror="this.onerror=null;this.src='${artHq(id)}'">`
+  : '';
+
+/** A small square still, for use inside table rows. */
+export const thumb = (id, alt = '') => id
+  ? `<span class="thumb">${artImg(id, alt)}</span>`
+  : '<span class="thumb"></span>';
+
+/**
+ * Slim artwork strip that heads a tab, so no page opens on a wall of text.
+ * `id` is a YouTube video whose still is used as the backdrop.
+ */
+export const banner = ({ title, sub = '', id, badge = '' }) => `
+  <header class="banner">
+    ${id ? `<img class="banner-bg" src="${art(id)}" alt=""
+              onerror="this.onerror=null;this.src='${artHq(id)}'">` : ''}
+    <div class="banner-body">
+      ${badge ? `<span class="badge p-crit">${esc(badge)}</span>` : ''}
+      <h2>${esc(title)}</h2>
+      ${sub ? `<p>${esc(sub)}</p>` : ''}
+    </div>
+  </header>`;

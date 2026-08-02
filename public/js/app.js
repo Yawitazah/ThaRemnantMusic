@@ -19,21 +19,28 @@ import * as tracker   from './tabs/tracker.js';
 
 const TABS = { now, artists, executive, diagnosis, roster, platforms, player, catalog, ledger, playbook, opps, budget, tracker };
 
-let currentTab = location.hash.slice(1) || 'now';
-if (!TABS[currentTab]) currentTab = 'now';
+/* Routes look like #artists or #artists/BREED — the part after the slash is
+   handed to the tab so a card on one page can open a specific record on another. */
+const parseHash = () => {
+  const [tab, ...rest] = location.hash.slice(1).split('/');
+  return { tab: TABS[tab] ? tab : 'now', arg: rest.length ? decodeURIComponent(rest.join('/')) : null };
+};
+
+let { tab: currentTab, arg: currentArg } = parseHash();
 
 /* ---------- rendering ---------- */
 
 function draw() {
   const view = $('#view');
   const mod = TABS[currentTab];
+  if (currentArg && mod.setArg) mod.setArg(currentArg);
   view.innerHTML = mod.render();
   window.scrollTo({ top: 0, behavior: 'instant' });
   mod.bind?.(view, draw);
 
   document.querySelectorAll('.tab').forEach(t =>
     t.classList.toggle('is-active', t.dataset.t === currentTab));
-  history.replaceState(null, '', '#' + currentTab);
+  history.replaceState(null, '', '#' + currentTab + (currentArg ? '/' + encodeURIComponent(currentArg) : ''));
 }
 
 /* ---------- boot ---------- */
@@ -68,14 +75,17 @@ async function boot() {
 
 document.querySelector('.tabs').addEventListener('click', e => {
   const t = e.target.closest('.tab');
-  if (!t || t.dataset.t === currentTab) return;
+  if (!t || (t.dataset.t === currentTab && !currentArg)) return;
   currentTab = t.dataset.t;
+  currentArg = null;
   draw();
 });
 
 window.addEventListener('hashchange', () => {
-  const h = location.hash.slice(1);
-  if (TABS[h] && h !== currentTab) { currentTab = h; draw(); }
+  const { tab, arg } = parseHash();
+  if (tab === currentTab && arg === currentArg) return;
+  currentTab = tab; currentArg = arg;
+  draw();
 });
 
 window.addEventListener('scroll', hideTip, { passive: true });
