@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tha Remnant Music Group — Label Command Center</title>
+<meta name="description" content="Live label dashboard: roster, catalog, album ledger, 90-day playbook, budget and weekly tracking.">
+<link rel="stylesheet" href="css/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>&#9834;</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="mark">TR</div>
+    <div>
+      <h1>Tha Remnant Music Group</h1>
+      <p class="sub">Label Command Center</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <span id="sync-state" class="sync" title="Data source">connecting…</span>
+    <button id="theme-btn" class="btn ghost" type="button" aria-label="Toggle theme">Light</button>
+    <button id="auth-btn" class="btn" type="button">Sign in to edit</button>
+  </div>
+</header>
+
+<div id="mode-banner" class="mode-banner" hidden>
+  <strong>Edit mode.</strong> Changes save to the shared database immediately — the team sees them on refresh.
+</div>
+
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button class="tab is-active" data-t="diagnosis" role="tab">Diagnosis</button>
+  <button class="tab" data-t="roster"    role="tab">Roster</button>
+  <button class="tab" data-t="player"    role="tab">Player</button>
+  <button class="tab" data-t="catalog"   role="tab">Catalog</button>
+  <button class="tab" data-t="ledger"    role="tab">Album Ledger</button>
+  <button class="tab" data-t="playbook"  role="tab">90-Day Playbook</button>
+  <button class="tab" data-t="opps"      role="tab">Opportunity Board</button>
+  <button class="tab" data-t="budget"    role="tab">Budget &amp; Goal</button>
+  <button class="tab" data-t="tracker"   role="tab">Weekly Tracker</button>
+</nav>
+
+<main id="view" class="view" role="tabpanel">
+  <div class="loading">Loading label data…</div>
+</main>
+
+<footer class="foot">
+  <span>Figures scraped live 2 Aug 2026 · re-pull anything older than a couple of weeks.</span>
+  <span id="foot-counts"></span>
+</footer>
+
+<!-- Sign-in dialog -->
+<dialog id="auth-dlg" class="dlg">
+  <form method="dialog" id="auth-form">
+    <h3>Sign in to edit</h3>
+    <p class="muted sm">Team members can read everything without signing in. Only label admins can change numbers.</p>
+    <label>Email<input type="email" id="auth-email" autocomplete="username" required></label>
+    <label>Password<input type="password" id="auth-pass" autocomplete="current-password" required></label>
+    <p id="auth-err" class="err" hidden></p>
+    <div class="dlg-actions">
+      <button value="cancel" class="btn ghost" type="submit" formnovalidate>Cancel</button>
+      <button value="ok" class="btn" type="submit">Sign in</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="tip" class="tip" hidden></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
