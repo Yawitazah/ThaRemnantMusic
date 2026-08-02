@@ -17,6 +17,8 @@ export const store = {
   opps: [],
   budget: [],
   weeks: [],
+  platforms: [],
+  collisions: [],
   settings: {},
   session: null,
 };
@@ -33,6 +35,8 @@ const TABLES = [
   ['opps',            'opportunities',    'sort_order'],
   ['budget',          'budget_lines',     'sort_order'],
   ['weeks',           'weekly_snapshots', 'week_of.desc'],
+  ['platforms',       'platforms',        'sort_order'],
+  ['collisions',      'name_collisions',  'sort_order'],
 ];
 
 export async function loadAll() {
