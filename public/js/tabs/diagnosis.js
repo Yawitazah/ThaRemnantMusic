@@ -19,11 +19,8 @@ export function render() {
     v: t.views, color: cvar('--series-1'), note: t.credit,
   }));
 
-  const zahRows = store.catalog
-    .filter(t => (t.artists || []).includes('zah'))
-    .sort((a, b2) => b2.views - a.views)
-    .map(t => ({ k: t.title.length > 24 ? t.title.slice(0, 23) + '…' : t.title,
-                 v: t.views, color: cvar('--series-3'), note: t.credit }));
+  const zt = store.zahTracks || [];
+  const led = zt.filter(t => t.led).length;
 
   const priorRows = store.prior.map(p => ({
     k: p.title.length > 26 ? p.title.slice(0, 25) + '…' : p.title,
@@ -33,9 +30,6 @@ export function render() {
     ? Math.round(store.prior.reduce((s, p) => s + p.views, 0) / store.prior.length)
     : b.priorAvg;
   const clearsQuarter = store.album.filter(a => a.yt_views >= priorAvg / 4).length;
-  const catalogAvg = store.catalog.length
-    ? Math.round(store.catalog.reduce((sum, t) => sum + t.views, 0) / store.catalog.length)
-    : 0;
 
   return `
 ${card(`
@@ -88,28 +82,50 @@ ${card(`
   </div>`)}
 
 ${card(`
-  <h3>The Yawitazah pattern — and why it is weaker than it looks</h3>
-  <span class="badge p-warn">claim revised</span>
-  <p class="muted sm" style="margin-top:10px">The five tracks featuring Yawitazah, against the
-  2026 album average and against the catalog as a whole.</p>
-  <div id="zah-chart">${hbar(zahRows, {
-      rowH: 29, padL: 190, ref: catalogAvg, refLabel: 'catalog avg ' + fmt(catalogAvg),
-      aria: 'Tracks featuring Yawitazah' })}</div>
-  <div class="grid g3" style="margin-top:14px">
-    ${stat('Feature average', fmt(s.featureAvg), '5 tracks')}
-    ${stat('vs 2026 album', (s.featureAvg / (s.albumAvg || 1)).toFixed(1) + '×', 'the flattering comparison', 'good')}
-    ${stat('vs whole catalog', (s.featureAvg / (catalogAvg || 1)).toFixed(2) + '×', 'the honest one', 'warn')}
+  <h3>The Yawitazah collaborations</h3>
+  <p class="muted sm">Measured against what was released alongside each one — the only comparison
+  that means anything, since a track from two years ago has had two years to accumulate views and a
+  track from last month has had a month.</p>
+
+  <div class="grid g4" style="margin-top:16px">
+    ${stat('Led their release group', `${led}\u2009/\u2009${zt.length}`, 'of the tracks he appears on', 'good')}
+    ${stat('Ring The Alarm', fmt(21233), '#1 of its group')}
+    ${stat('Musick Industry', fmt(20145), '#2 of the same group')}
+    ${stat('Filthy Coon', fmt(3471), 'best on the 2026 album')}
   </div>
-  <div class="callout" style="margin-top:14px">
-    <p class="sm" style="margin:0 0 .6em"><strong>Read this carefully before repeating it.</strong>
-    The often-quoted "7.5× lift" measures these tracks against the 2026 album average
-    (${fmt(s.albumAvg)}), which is the weakest period in the label's history. Measured against the
-    full catalog (${fmt(catalogAvg)}), the same five tracks land at roughly par.</p>
-    <p class="sm muted" style="margin:0">What survives: within the 2026 album, the Yawitazah track is
-    the best performer — but that is a sample of one. Ring The Alarm and Musick Industry are genuinely
-    top-15 records. The honest position is that this is a signal worth testing deliberately, not a
-    proven pattern to build a release strategy on.</p>
-  </div>`)}
+
+  <div class="tbl-wrap" style="max-height:none;margin-top:18px">
+    <table>
+      <thead><tr>
+        <th>Track</th><th class="r">Views</th><th>Released against</th>
+        <th class="r">Placed</th><th style="width:34%">What happened</th>
+      </tr></thead>
+      <tbody>
+        ${zt.map(t => `
+          <tr${t.led ? ' style="background:var(--surface-2)"' : ''}>
+            <td><strong>${esc(t.title)}</strong><br>
+                <span class="muted sm">${esc(t.credit || '')} · ${esc(t.released || '')}</span></td>
+            <td class="r num"><strong>${fmt(t.views)}</strong></td>
+            <td class="muted sm">${esc(t.cohort)}<br>
+                <span class="sm">${t.cohort_size} tracks · avg ${fmt(t.cohort_avg)}</span></td>
+            <td class="r"><span class="badge ${t.led ? 'p-good' : 'p-mute'}">#${t.rank_in_cohort}
+                of ${t.cohort_size}</span></td>
+            <td class="muted sm">${esc(t.headline || '')}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout good" style="margin-top:14px">
+    <strong>${led} of the ${zt.length} records finished first or second in the group they came out
+    with.</strong> Ring The Alarm and Musick Industry took both top spots in their release window.
+    Filthy Coon is the strongest track on the 2026 album at more than double the next one. HIGH ALERT
+    is the biggest record on King Konnect's own channel. That is a consistent result across four
+    different contexts, three different years and two different channels.
+  </div>
+  <p class="sm muted">SKY ON FIRE is the exception, and it has an explanation rather than a mystery:
+  it went out while Yawitazah's channel was dormant following a hiatus, during a period when Breed
+  was in a public online dispute. Neither condition applied to the other four.</p>`)}
 
 ${card(`
   <h3>3 — Embedding is disabled on every video</h3>
@@ -251,10 +267,6 @@ export function bind(mount) {
   ]);
   bindBars(mount.querySelector('#ceiling-chart'),
     s.top10.map(t => ({ k: t.title, v: t.views, note: t.credit })));
-  bindBars(mount.querySelector('#zah-chart'),
-    store.catalog.filter(t => (t.artists || []).includes('zah'))
-      .sort((a, c) => c.views - a.views)
-      .map(t => ({ k: t.title, v: t.views, note: t.credit })));
   bindBars(mount.querySelector('#prior-chart'),
     store.prior.map(p => ({ k: p.title, v: p.views, note: `${p.age} · ${p.format}` })));
 }

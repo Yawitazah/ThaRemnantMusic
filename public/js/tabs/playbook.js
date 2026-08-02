@@ -43,7 +43,7 @@ ${card(`
     <span class="muted num" id="pb-pct">${Math.round(p.pct)}%</span>
   </div>
   <div class="progress"><i id="pb-bar" style="width:${p.pct}%"></i></div>
-  ${!admin ? '<p class="sm muted" style="margin-top:12px">Sign in to tick items off.</p>' : ''}`)}
+  <p class="sm muted" style="margin-top:12px">Tell Claude what is done and the checklist updates.</p>`)}
 
 ${card(`
   <h3>Do these first — and why</h3>

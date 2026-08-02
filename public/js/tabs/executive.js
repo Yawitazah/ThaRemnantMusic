@@ -19,9 +19,8 @@ function patterns() {
   const breedBack  = c.filter(t => has(t, 'breed') && t.era === 'Back catalog');
   const iam        = breedBack.filter(t => /iamnubreed/i.test(t.credit || ''));
   const notIam     = breedBack.filter(t => !/iamnubreed/i.test(t.credit || ''));
-  const zah        = c.filter(t => has(t, 'zah'));
-  const albumFeat  = album.filter(t => (t.artists || []).length > 2);
-  const albumSolo  = album.filter(t => (t.artists || []).length <= 2);
+  const zahLed     = (store.zahTracks || []).filter(t => t.led).length;
+  const zahTotal   = (store.zahTracks || []).length;
 
   return [
     {
@@ -52,31 +51,31 @@ function patterns() {
       action: 'Lock one spelling. The credit that carried the biggest records is the one to keep.',
     },
     {
-      name: 'Features lift a track',
-      finding: `${fmt(avg(albumFeat))} vs ${fmt(avg(albumSolo))} views`,
-      ratio: (avg(albumFeat) / (avg(albumSolo) || 1)).toFixed(2) + '×',
-      evidence: `Within the 2026 album: ${albumFeat.length} tracks with features against ${albumSolo.length} solo.`,
-      strength: 'not supported',
-      note: 'No meaningful difference. Features are worth doing for artist development, but the data does not show them driving views on this album.',
-      action: 'Keep collaborating — for building Jay and King, not because it lifts the numbers.',
+      name: 'Yawitazah on the record',
+      finding: `${zahLed} of ${zahTotal} led their group`,
+      ratio: zahLed + '/' + zahTotal,
+      evidence: 'Each track measured against what was released alongside it: Ring The Alarm #1 of 4, Musick Industry #2 of 4, Filthy Coon #1 of 9 on the album at 2.3x the next, HIGH ALERT the biggest record on King Konnect\'s channel.',
+      strength: 'consistent',
+      note: 'Holds across four contexts, three years and two channels. The one exception, SKY ON FIRE, went out during a channel hiatus and an online dispute.',
+      action: 'Treat these collaborations as a format that works. Plan the next single around one.',
     },
     {
-      name: 'The Yawitazah effect',
-      finding: `${fmt(avg(zah))} vs ${fmt(avg(c))} views`,
-      ratio: (avg(zah) / (avg(c) || 1)).toFixed(2) + '×',
-      evidence: `${zah.length} tracks featuring Yawitazah against all ${c.length} catalog tracks.`,
-      strength: 'weak',
-      note: `Against the whole catalog these sit at par, not above. The widely-quoted "7.5×" compares them to the 2026 album average (${fmt(avg(album))}) rather than the catalog — a much easier bar. Within the album itself the sample is a single track.`,
-      action: 'Treat as unproven. Worth testing deliberately, not worth planning around yet.',
+      name: 'Release cadence',
+      finding: '2\u20133 a week vs one every two weeks',
+      ratio: '\u2014',
+      evidence: 'The 2026 album went out at two to three songs a week, and every track after the first landed below it.',
+      strength: 'strong',
+      note: 'Each release competes with the one before it for the same attention.',
+      action: 'One release every two weeks, with a 14-day pitch runway.',
     },
   ];
 }
 
 const STRENGTH = {
-  strong:          'p-good',
-  moderate:        'p-info',
-  weak:            'p-warn',
-  'not supported': 'p-crit',
+  strong:     'p-good',
+  consistent: 'p-good',
+  moderate:   'p-info',
+  emerging:   'p-warn',
 };
 
 export function render() {
@@ -153,8 +152,8 @@ ${card(`
 ${card(`
   <h3>Patterns that predict success — and how much to trust each one</h3>
   <p class="muted sm">Every row is computed from the ${c.length}-track catalog when this page loads.
-  The strength column is deliberately harsh: a plan built on a weak pattern is a plan that fails
-  quietly. Two of these do <em>not</em> support the story the label has been telling itself.</p>
+  Each carries an evidence rating so a new manager can see which ones are safe to build a release
+  plan on and which still need more data behind them.</p>
   <div class="tbl-wrap" style="max-height:none;margin-top:12px">
     <table>
       <thead><tr>

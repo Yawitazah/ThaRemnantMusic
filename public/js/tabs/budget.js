@@ -62,7 +62,7 @@ ${card(`
   </tbody></table>
   <div id="b-chart" style="margin-top:18px">${hbar(budgetRows(), {
       rowH: 32, padL: 175, aria: 'Budget allocation' })}</div>
-  ${!admin ? '<p class="sm muted">Sign in to change the allocation.</p>' : ''}
+  <p class="sm muted">Ask Claude to change the allocation and it updates here.</p>
 </section>
 
 ${card(`

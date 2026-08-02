@@ -58,7 +58,7 @@ ${card(`
       <button class="btn" id="w-add">Add week</button>
       <span class="muted sm">Adds an empty row you can fill in.</span>
     </div>`
-    : '<p class="sm muted">Sign in to log a week.</p>'}
+    : '<p class="sm muted">Give Claude the weekly numbers and they land here.</p>'}
   <div class="row" style="margin-top:12px">
     <button class="btn ghost sm" id="w-export">Export everything (JSON)</button>
     <button class="btn ghost sm" id="w-export-csv">Export weeks (CSV)</button>

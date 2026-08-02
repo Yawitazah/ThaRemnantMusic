@@ -32,7 +32,7 @@ ${card(`
   <div class="row" style="margin-top:14px">
     ${counts.map(c => `<span class="badge ${STATUS_CLASS[c.s]}">${c.s}: ${c.n}</span>`).join('')}
   </div>
-  ${!admin ? '<p class="sm muted" style="margin-top:12px">Sign in to change status.</p>' : ''}`)}
+  <p class="sm muted" style="margin-top:12px">Tell Claude what moved and the statuses update.</p>`)}
 
 <section class="card">
   <div class="tbl-wrap" style="max-height:none">

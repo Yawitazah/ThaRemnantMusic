@@ -149,7 +149,7 @@ ${card(`
     <tr><td>6</td><td class="wrap">Point every YouTube description and the Shopify store at the canonical page</td></tr>
     <tr><td>7</td><td class="wrap">File DistroKid Fixer requests for anything landing on the wrong profile</td></tr>
   </tbody></table>
-  ${!admin ? '<p class="sm muted" style="margin-top:12px">Sign in to update status.</p>' : ''}`)}`;
+  <p class="sm muted" style="margin-top:12px">Tell Claude what has been claimed and the statuses update.</p>`)}`;
 }
 
 export function bind(mount) {

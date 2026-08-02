@@ -53,7 +53,7 @@ ${card(`
     ${stat('Logged streams', fmt(t.streams), 'Spotify + Apple + other')}
     ${stat('Toward 100K', Math.round(t.streams / 1000) / 10 + '%', 'of the stream goal')}
   </div>
-  ${!isAdmin() ? '<p class="sm muted" style="margin-top:12px">Sign in to edit stream counts.</p>' : ''}`)}
+  <p class="sm muted" style="margin-top:12px">Give Claude the DistroKid and Spotify numbers and they appear here.</p>`)}
 
 <section class="card">
   <h3>Track ledger</h3>
