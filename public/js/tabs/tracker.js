@@ -58,7 +58,12 @@ ${card(`
       <button class="btn" id="w-add">Add week</button>
       <span class="muted sm">Adds an empty row you can fill in.</span>
     </div>`
-    : '<p class="sm muted">Sign in to log a week.</p>'}`)}
+    : '<p class="sm muted">Sign in to log a week.</p>'}
+  <div class="row" style="margin-top:12px">
+    <button class="btn ghost sm" id="w-export">Export everything (JSON)</button>
+    <button class="btn ghost sm" id="w-export-csv">Export weeks (CSV)</button>
+    <span class="muted sm">Snapshot for backup, or to hand someone the numbers offline.</span>
+  </div>`)}
 
 <section class="card">
   <div class="tbl-wrap" style="max-height:none">
@@ -86,7 +91,38 @@ ${card(`
   </tbody></table>`)}`;
 }
 
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export function bind(mount, rerender) {
+  const stamp = new Date().toISOString().slice(0, 10);
+
+  mount.querySelector('#w-export')?.addEventListener('click', () => {
+    download(`remnant-command-center-${stamp}.json`, JSON.stringify({
+      exported: new Date().toISOString(),
+      note: 'Tha Remnant Music Group — full dashboard snapshot',
+      channels: store.channels, roster: store.roster, catalog: store.catalog,
+      album: store.album, prior: store.prior, playbook: store.playbook,
+      opportunities: store.opps, budget: store.budget,
+      weeks: store.weeks, settings: store.settings,
+    }, null, 2), 'application/json');
+    toast('Snapshot downloaded');
+  });
+
+  mount.querySelector('#w-export-csv')?.addEventListener('click', () => {
+    const cols = ['week_of', ...FIELDS.map(f => f[0])];
+    const head = ['Week of', ...FIELDS.map(f => f[1])].join(',');
+    const rows = [...store.weeks]
+      .sort((a, b) => a.week_of.localeCompare(b.week_of))
+      .map(w => cols.map(c => w[c] ?? '').join(','));
+    download(`remnant-weekly-${stamp}.csv`, [head, ...rows].join('\n'), 'text/csv');
+    toast('CSV downloaded');
+  });
+
   mount.querySelector('#w-metric')?.addEventListener('change', e => {
     metric = e.target.value;
     const weeks = [...store.weeks].sort((a, b) => a.week_of.localeCompare(b.week_of));

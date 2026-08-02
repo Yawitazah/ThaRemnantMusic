@@ -44,6 +44,36 @@ ${card(`
   </div>
   <div class="progress"><i id="pb-bar" style="width:${p.pct}%"></i></div>
   ${!admin ? '<p class="sm muted" style="margin-top:12px">Sign in to tick items off.</p>' : ''}`)}
+
+${card(`
+  <h3>Do these first — and why</h3>
+  <p class="muted sm">Two moves carry more weight than everything else on the list combined.
+  Both cost nothing.</p>
+
+  <div class="callout crit" style="margin-top:14px">
+    <span class="badge p-crit">do first</span> <span class="badge p-mute">$0</span>
+    <h4 style="margin:.5em 0 .3em">Kill the two-channel split for music</h4>
+    <p class="sm">Music videos, visualisers and song-story content move to
+    <strong>Nubreed Global Truth</strong>. Nubreed Universal Ent. stays alive as the catalog archive,
+    but it stops being the primary release door. Cross-posting the same song under three titles on
+    three channels stops entirely — one canonical upload, everything else links to it.</p>
+    <p class="sm muted" style="margin:0"><strong>Why:</strong> your own A/B test already ran.
+    NO REMEDY did 4,797 on the big channel and 972 on the small one. That is not a theory,
+    it is a result.</p>
+  </div>
+
+  <div class="callout crit">
+    <span class="badge p-crit">do first</span> <span class="badge p-mute">$0</span>
+    <h4 style="margin:.5em 0 .3em">Lock one name and one spelling, forever</h4>
+    <p class="sm">Pick <strong>BREED</strong>. It is already on half the new uploads, it sidesteps the
+    established country-rap act "Nu Breed" that owns the search results, and it is short enough to
+    read on a thumbnail.</p>
+    <p class="sm muted" style="margin:0">Then enforce it everywhere, zero variation:
+    <strong>BREED</strong> — not Nubreed, NuBreed, Nu Breed, IamNubreed or Nubreed Universal.
+    <strong>JayThaRealist</strong> — not JayTheRealest or Jay the Realist.
+    <strong>Yawitazah</strong> — not Yawitizah or Yahwitizah.
+    Title format every single time: <code>BREED – Song Name (feat. X)</code></p>
+  </div>`)}
 ${sections}`;
 }
 
