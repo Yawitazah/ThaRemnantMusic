@@ -1,5 +1,5 @@
 import { store, isAdmin, updateRow, albumTotals, bench } from '../data.js';
-import { fmt, esc, hbar, bindBars, stat, card, cvar, toast } from '../ui.js';
+import { fmt, esc, hbar, bindBars, stat, card, cvar, toast, banner, thumb } from '../ui.js';
 
 const barRows = () => store.album.map(a => ({
   k: a.title.length > 24 ? a.title.slice(0, 23) + '…' : a.title,
@@ -11,7 +11,7 @@ const barRows = () => store.album.map(a => ({
 const totalsRow = () => {
   const t = albumTotals();
   return `<tr style="background:var(--surface-2);font-weight:650">
-    <td colspan="3">Totals</td>
+    <td colspan="4">Totals</td>
     <td class="r num">${fmt(t.yt)}</td>
     <td class="r num" id="t-sp">${fmt(t.spotify)}</td>
     <td class="r num" id="t-ap">${fmt(t.apple)}</td>
@@ -30,6 +30,7 @@ export function render() {
     const sum = (a.spotify || 0) + (a.apple || 0) + (a.other || 0);
     return `<tr data-id="${a.id}">
       <td class="num">${a.track_no}</td>
+      <td style="width:76px">${thumb(a.video_id, a.title)}</td>
       <td><strong>${esc(a.title)}</strong>
         ${a.alt_label ? `<br><span class="badge p-good">${esc(a.alt_label)}</span>` : ''}</td>
       <td class="muted sm">${esc(a.features || '—')}<br>${esc(a.released || '')}</td>
@@ -42,6 +43,7 @@ export function render() {
   }).join('');
 
   return `
+${banner({ id: '35Fgo3LSEd4', title: 'Album ledger', sub: 'The 2026 record, track by track, with room for the stream counts as they come in.' })}
 ${card(`
   <h2>Album ledger — the 2026 record</h2>
   <p class="muted sm">Nine tracks, released 2–30 July 2026, mostly on the 18.4K channel.
@@ -60,7 +62,7 @@ ${card(`
   <div class="tbl-wrap" style="max-height:none">
     <table>
       <thead><tr>
-        <th>#</th><th>Track</th><th>Features / released</th>
+        <th>#</th><th></th><th>Track</th><th>Features / released</th>
         <th class="r">YouTube</th><th class="r">Spotify</th><th class="r">Apple</th>
         <th class="r">Other</th><th class="r">Streams</th>
       </tr></thead>

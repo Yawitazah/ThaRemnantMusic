@@ -1,5 +1,5 @@
 import { store, isAdmin, updateRow } from '../data.js';
-import { esc, card, toast } from '../ui.js';
+import { esc, card, toast, banner } from '../ui.js';
 
 const STATUSES = ['Not started', 'In progress', 'Blocked', 'Done'];
 const IMPACT_CLASS = { critical: 'p-crit', high: 'p-warn', medium: 'p-info' };
@@ -25,6 +25,7 @@ export function render() {
     </tr>`).join('');
 
   return `
+${banner({ id: 'erSV7qdGBFY', title: 'Opportunity board', sub: 'Every move worth making, ordered by impact, with the honest caveats attached.' })}
 ${card(`
   <h2>Opportunity board</h2>
   <p class="muted sm">Every move worth making, ordered by impact. Nine of these cost nothing but

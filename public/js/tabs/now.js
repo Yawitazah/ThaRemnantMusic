@@ -27,9 +27,10 @@ export function render() {
     ? Math.round(album.reduce((s, t) => s + t.views, 0) / album.length) : 0;
 
   const projCard = p => `
-    <article class="proj">
+    <a class="proj" href="#artists/${encodeURIComponent(p.artist)}">
       <div class="proj-art">
         <span class="badge ${STATUS_CLASS[p.status] || 'p-mute'} tag">${esc(p.status)}</span>
+        <span class="go">${esc(p.artist)} →</span>
         ${imgTag(p.art_video_id, p.title)}
       </div>
       <div class="proj-body">
@@ -39,7 +40,7 @@ export function render() {
           p.release_label ? ' · ' + esc(p.release_label) : ''}</div>
         <p>${esc(p.blurb || '')}</p>
       </div>
-    </article>`;
+    </a>`;
 
   const heroId = now?.hero_video_id || now?.art_video_id || '';
 
@@ -92,18 +93,19 @@ ${card(`
 
 ${card(`
   <h2>The slate</h2>
-  <p class="muted sm">What is out, what is being pushed, and what is coming next.</p>
+  <p class="muted sm">What is out, what is being pushed, and what is coming next. Click through to the artist.</p>
   <div class="proj-grid" style="margin-top:16px">
     ${projects.map(projCard).join('')}
   </div>`)}
 
 ${card(`
   <h2>The roster</h2>
-  <p class="muted sm">Four people. Open the Artists tab for the full profile on each.</p>
+  <p class="muted sm">Four people. Click any of them for the full profile.</p>
   <div class="proj-grid" style="margin-top:16px">
     ${(store.profiles || []).map(a => `
-      <article class="proj">
+      <a class="proj" href="#artists/${encodeURIComponent(a.artist)}">
         <div class="proj-art" style="aspect-ratio:1">
+          <span class="go">Open profile →</span>
           ${a.image_url
             ? `<img src="${esc(a.image_url)}" alt="${esc(a.artist)}">`
             : imgTag(a.image_video_id, a.artist)}
@@ -113,7 +115,7 @@ ${card(`
           <div class="proj-meta">${esc(a.role || '')}</div>
           <p>${esc(a.tagline || '')}</p>
         </div>
-      </article>`).join('')}
+      </a>`).join('')}
   </div>`)}`;
 }
 

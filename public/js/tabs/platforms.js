@@ -1,5 +1,5 @@
 import { store, isAdmin, updateRow } from '../data.js';
-import { fmt, esc, hbar, bindBars, stat, card, cvar, toast } from '../ui.js';
+import { fmt, esc, hbar, bindBars, stat, card, cvar, toast, banner } from '../ui.js';
 
 const STATUS = ['verified', 'needs check', 'unverified', 'action required', 'claimed'];
 const STATUS_CLASS = {
@@ -42,6 +42,7 @@ export function render() {
     const rows = store.platforms.filter(g.match);
     if (!rows.length) return '';
     return `
+${banner({ id: 'Ew8a4T182Vw', title: 'Platforms & identity', sub: 'Every place the label exists, with the link and the ID so anything here can be checked.' })}
     <section class="card">
       <h3>${esc(g.key)}</h3>
       <div class="tbl-wrap" style="max-height:none;margin-top:10px">

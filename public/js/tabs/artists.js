@@ -4,6 +4,9 @@ import { imgTag } from './now.js';
 
 let current = null;
 
+/** Called by the router when the URL is #artists/<name>. */
+export function setArg(name) { if (name) current = name; }
+
 const list = () => (store.profiles || []);
 
 const swot = (cls, title, items) => !items || !items.length ? '' : `

@@ -1,5 +1,5 @@
 import { store, bench } from '../data.js';
-import { fmt, esc, hbar, bindBars, stat, card, cvar } from '../ui.js';
+import { fmt, esc, hbar, bindBars, stat, card, cvar, banner } from '../ui.js';
 
 /* ------------------------------------------------------------------ *
  * Pattern tests. Every claim on this tab is computed from the catalog
@@ -108,6 +108,7 @@ export function render() {
   ];
 
   return `
+${banner({ id: 'wQwwd6zu62A', title: 'Executive brief', sub: 'The label, the verdict and the patterns worth betting on — written to be read cold.', badge: 'start here' })}
 ${card(`
   <span class="badge p-info">start here</span>
   <h2 style="margin-top:.5em">Executive brief</h2>

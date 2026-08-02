@@ -1,5 +1,5 @@
 import { store, bench, catalogStats } from '../data.js';
-import { fmt, esc, hbar, bindBars, stat, card, cvar } from '../ui.js';
+import { fmt, esc, hbar, bindBars, stat, card, cvar, banner } from '../ui.js';
 
 export function render() {
   const b = bench();
@@ -32,6 +32,7 @@ export function render() {
   const clearsQuarter = store.album.filter(a => a.yt_views >= priorAvg / 4).length;
 
   return `
+${banner({ id: 'opiMusWzX9U', title: 'Diagnosis', sub: 'Five findings, each with the evidence behind it and how far it can be trusted.' })}
 ${card(`
   <h2>The core finding</h2>
   <p><strong>There is no discovery problem. There is a distribution-of-attention problem.</strong></p>

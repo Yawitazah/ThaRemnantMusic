@@ -1,5 +1,5 @@
 import { store, isAdmin, updateRow, playbookProgress } from '../data.js';
-import { esc, card, toast, $$ } from '../ui.js';
+import { esc, card, toast, $$, banner } from '../ui.js';
 
 export function render() {
   const admin = isAdmin();
@@ -34,6 +34,7 @@ export function render() {
   }).join('');
 
   return `
+${banner({ id: 'NYbj22DOSrU', title: '90-day playbook', sub: 'Twenty-eight moves across three phases. Almost all of them are free.' })}
 ${card(`
   <h2>90-day execution checklist</h2>
   <p class="muted sm">Nothing here had been started as of 2 August 2026. Tick items as they land —

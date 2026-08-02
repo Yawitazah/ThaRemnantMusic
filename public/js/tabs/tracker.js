@@ -1,5 +1,5 @@
 import { store, isAdmin, insertRow, updateRow, deleteRow } from '../data.js';
-import { fmt, money, esc, line, card, toast } from '../ui.js';
+import { fmt, money, esc, line, card, toast, banner } from '../ui.js';
 
 const FIELDS = [
   ['gt_subs',           'Global Truth subs'],
@@ -47,6 +47,7 @@ export function render() {
   const defaultDate = monday.toISOString().slice(0, 10);
 
   return `
+${banner({ id: 'vv-hxUp2xTI', title: 'Weekly tracker', sub: 'Five minutes every Monday. This is what turns the dashboard into a record.' })}
 ${card(`
   <h2>Weekly snapshot</h2>
   <p class="muted sm">Every Monday, five minutes. This is the only recurring habit the plan asks for —

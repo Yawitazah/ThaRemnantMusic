@@ -1,5 +1,5 @@
 import { store } from '../data.js';
-import { fmt, esc, hbar, bindBars, card, cvar } from '../ui.js';
+import { fmt, esc, hbar, bindBars, card, cvar, banner } from '../ui.js';
 
 const STAGE_CLASS = {
   established: 'p-good',
@@ -36,6 +36,7 @@ export function render() {
     const own = store.channels.find(c => c.artist_name === a.name && c.subs > 0);
     const stage = own?.stage || (a.subs ? '' : 'feature / ops');
     return `
+${banner({ id: 'WeT9uJsR0ds', title: 'Roster', sub: 'Every channel the label controls, what condition it is in, and the next move for each.' })}
     <section class="card">
       <div class="spread" style="align-items:center">
         <span class="artist-name">${esc(a.name)}</span>

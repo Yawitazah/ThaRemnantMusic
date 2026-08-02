@@ -1,5 +1,5 @@
 import { store, bench } from '../data.js';
-import { fmt, esc, hbar, bindBars, stat, card, cvar, $$ } from '../ui.js';
+import { fmt, esc, hbar, bindBars, stat, card, cvar, $$, banner } from '../ui.js';
 
 const ARTISTS = [
   { k: 'all',   label: 'All tracks' },
@@ -144,6 +144,7 @@ export function render() {
     </button>`).join('');
 
   return `
+${banner({ id: 'gjZGQyazceY', title: 'Player', sub: 'Every record in the catalog, filterable, with the numbers behind each one.' })}
 ${card(`
   <h2>Player</h2>
   <div class="callout crit">

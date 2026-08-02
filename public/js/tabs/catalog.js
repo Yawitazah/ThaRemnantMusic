@@ -1,5 +1,5 @@
 import { store, catalogStats } from '../data.js';
-import { fmt, esc, stat, card, $$ } from '../ui.js';
+import { fmt, esc, stat, card, $$, banner, thumb } from '../ui.js';
 
 const FILTERS = [
   { k: 'all',   label: 'All' },
@@ -28,6 +28,7 @@ const rows = () => {
 
 const tbody = () => rows().map(t => `
   <tr>
+    <td style="width:76px">${thumb(t.video_id, t.title)}</td>
     <td><a href="${esc(t.url)}" target="_blank" rel="noopener">${esc(t.title)}</a>
       ${t.note ? `<br><span class="muted sm">${esc(t.note)}</span>` : ''}</td>
     <td class="muted sm">${esc(t.credit || '')}</td>
@@ -39,6 +40,7 @@ const tbody = () => rows().map(t => `
 export function render() {
   const s = catalogStats();
   return `
+${banner({ id: 'KSP3_HePoR8', title: 'The catalog', sub: 'Every track across all four channels, filterable and sortable.' })}
 ${card(`
   <h2>What the full catalog reveals</h2>
   <div class="grid g4">
@@ -62,6 +64,7 @@ ${card(`
   <div class="tbl-wrap">
     <table>
       <thead><tr>
+        <th></th>
         <th class="sortable" data-s="title">Title</th>
         <th class="sortable" data-s="credit">Credited as</th>
         <th class="sortable r" data-s="views">Views</th>

@@ -1,5 +1,5 @@
 import { store, isAdmin, updateRow, saveSetting, bench } from '../data.js';
-import { fmt, money, esc, hbar, bindBars, stat, card, cvar, toast } from '../ui.js';
+import { fmt, money, esc, hbar, bindBars, stat, card, cvar, toast, banner } from '../ui.js';
 
 const COLORS = ['--series-1', '--series-2', '--series-3', '--text-muted'];
 
@@ -41,6 +41,7 @@ export function render() {
     </label>`;
 
   return `
+${banner({ id: '_TmeO71ZeB4', title: 'Budget & goal model', sub: 'Where the $500 a month goes, and the arithmetic behind 100,000 streams.' })}
 ${card(`
   <h2>$500/month allocation</h2>
   <p class="muted sm">Most of the plan is free. This is the paid layer, and it is deliberately
