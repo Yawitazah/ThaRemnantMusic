@@ -159,6 +159,18 @@ export function bind(mount) {
     note.innerHTML = msg;
   };
 
+  // A blocked embed does not reliably raise onError — YouTube renders its own
+  // error panel inside the iframe and stays silent. So we also watch the clock:
+  // if playback has not actually started, treat it as blocked.
+  let started = false;
+  const watchdog = setTimeout(() => {
+    if (!started) {
+      blocked('<strong>Embedding is off</strong> for this video, so it can\'t play here — '
+            + 'the same reason no blog or EPK can show it. Turn on "Allow embedding" in '
+            + 'YouTube Studio and this hero starts playing on its own.');
+    }
+  }, 5000);
+
   youtubeApi().then(YT => {
     let player;
     player = new YT.Player('hero-player', {
@@ -172,10 +184,16 @@ export function bind(mount) {
         onReady: e => { e.target.mute(); e.target.playVideo(); },
         onStateChange: e => {
           // Fade in only on real playback, and restart rather than trusting `loop`.
-          if (e.data === YT.PlayerState.PLAYING) layer.classList.add('on');
+          if (e.data === YT.PlayerState.PLAYING) {
+            started = true;
+            clearTimeout(watchdog);
+            if (note) note.hidden = true;
+            layer.classList.add('on');
+          }
           if (e.data === YT.PlayerState.ENDED) { player.seekTo(0); player.playVideo(); }
         },
         onError: e => {
+          clearTimeout(watchdog);
           if (EMBED_BLOCKED.has(e.data)) {
             blocked('<strong>Embedding is off</strong> for this video, so it can\'t play here — '
                   + 'the same reason no blog or EPK can show it. Turn on "Allow embedding" in '
@@ -188,6 +206,7 @@ export function bind(mount) {
     });
   }).catch(() => {
     // No API, no autoplay — the artwork alone is a perfectly good hero.
+    clearTimeout(watchdog);
     layer.remove();
   });
 }
