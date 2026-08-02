@@ -3,6 +3,8 @@
 import { store, loadAll, catalogStats } from './data.js';
 import { $, toast, hideTip } from './ui.js';
 
+import * as now       from './tabs/now.js';
+import * as artists   from './tabs/artists.js';
 import * as executive from './tabs/executive.js';
 import * as diagnosis from './tabs/diagnosis.js';
 import * as roster    from './tabs/roster.js';
@@ -15,10 +17,10 @@ import * as opps      from './tabs/opps.js';
 import * as budget    from './tabs/budget.js';
 import * as tracker   from './tabs/tracker.js';
 
-const TABS = { executive, diagnosis, roster, platforms, player, catalog, ledger, playbook, opps, budget, tracker };
+const TABS = { now, artists, executive, diagnosis, roster, platforms, player, catalog, ledger, playbook, opps, budget, tracker };
 
-let currentTab = location.hash.slice(1) || 'executive';
-if (!TABS[currentTab]) currentTab = 'executive';
+let currentTab = location.hash.slice(1) || 'now';
+if (!TABS[currentTab]) currentTab = 'now';
 
 /* ---------- rendering ---------- */
 

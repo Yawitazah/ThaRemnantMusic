@@ -20,6 +20,8 @@ export const store = {
   platforms: [],
   collisions: [],
   zahTracks: [],
+  projects: [],
+  profiles: [],
   settings: {},
   session: null,
 };
@@ -41,6 +43,8 @@ const TABLES = [
   ['platforms',       'platforms',        'sort_order'],
   ['collisions',      'name_collisions',  'sort_order'],
   ['zahTracks',       'zah_tracks',       'sort_order'],
+  ['projects',        'projects',         'sort_order'],
+  ['profiles',        'artist_profiles',  'sort_order'],
 ];
 
 export async function loadAll() {
