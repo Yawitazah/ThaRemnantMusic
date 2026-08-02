@@ -1,0 +1,97 @@
+import { store, isAdmin, updateRow, playbookProgress } from '../data.js';
+import { esc, card, toast, $$ } from '../ui.js';
+
+export function render() {
+  const admin = isAdmin();
+  const p = playbookProgress();
+
+  const phases = [...new Set(store.playbook.map(i => i.phase))];
+  const sections = phases.map(phase => {
+    const items = store.playbook.filter(i => i.phase === phase);
+    const done = items.filter(i => i.done).length;
+    const weeks = [...new Set(items.map(i => i.week))];
+
+    const groups = weeks.map(w => `
+      <tr><td colspan="3" style="padding-top:14px">
+        <span class="badge p-info">${esc(w)}</span></td></tr>
+      ${items.filter(i => i.week === w).map(i => `
+        <tr data-id="${i.id}" class="${i.done ? 'done' : ''}">
+          <td style="width:34px"><input type="checkbox" ${i.done ? 'checked' : ''} ${admin ? '' : 'disabled'}></td>
+          <td class="task">${esc(i.task)}</td>
+          <td style="width:150px">
+            <input type="text" class="note" placeholder="${admin ? 'note…' : ''}"
+              value="${esc(i.note || '')}" ${admin ? '' : 'disabled'}>
+          </td>
+        </tr>`).join('')}`).join('');
+
+    return `<section class="card">
+      <div class="spread">
+        <h3 style="margin:0">${esc(phase)}</h3>
+        <span class="badge ${done === items.length ? 'p-good' : 'p-mute'}">${done}/${items.length}</span>
+      </div>
+      <table style="margin-top:8px"><tbody>${groups}</tbody></table>
+    </section>`;
+  }).join('');
+
+  return `
+${card(`
+  <h2>90-day execution checklist</h2>
+  <p class="muted sm">Nothing here had been started as of 2 August 2026. Tick items as they land —
+  the whole team sees the same progress.</p>
+  <div class="spread" style="margin:16px 0 8px">
+    <strong id="pb-count">${p.done} of ${p.total} complete</strong>
+    <span class="muted num" id="pb-pct">${Math.round(p.pct)}%</span>
+  </div>
+  <div class="progress"><i id="pb-bar" style="width:${p.pct}%"></i></div>
+  ${!admin ? '<p class="sm muted" style="margin-top:12px">Sign in to tick items off.</p>' : ''}`)}
+${sections}`;
+}
+
+export function bind(mount) {
+  if (!isAdmin()) return;
+
+  const refresh = () => {
+    const p = playbookProgress();
+    mount.querySelector('#pb-count').textContent = `${p.done} of ${p.total} complete`;
+    mount.querySelector('#pb-pct').textContent = Math.round(p.pct) + '%';
+    mount.querySelector('#pb-bar').style.width = p.pct + '%';
+    // per-phase counters
+    $$('.card', mount).forEach(c => {
+      const h = c.querySelector('h3'); if (!h) return;
+      const items = store.playbook.filter(i => i.phase === h.textContent);
+      if (!items.length) return;
+      const done = items.filter(i => i.done).length;
+      const badge = c.querySelector('.badge');
+      badge.textContent = `${done}/${items.length}`;
+      badge.className = 'badge ' + (done === items.length ? 'p-good' : 'p-mute');
+    });
+  };
+
+  mount.addEventListener('change', async e => {
+    const tr = e.target.closest('tr[data-id]');
+    if (!tr) return;
+    const id = +tr.dataset.id;
+
+    if (e.target.type === 'checkbox') {
+      const done = e.target.checked;
+      e.target.disabled = true;
+      try {
+        await updateRow('playbook_items', id, { done }, store.playbook);
+        tr.classList.toggle('done', done);
+        refresh();
+        toast(done ? 'Ticked off' : 'Reopened');
+      } catch (err) {
+        e.target.checked = !done;
+        toast('Save failed: ' + err.message, 'err');
+      } finally { e.target.disabled = false; }
+    }
+
+    if (e.target.classList.contains('note')) {
+      const note = e.target.value.trim() || null;
+      try {
+        await updateRow('playbook_items', id, { note }, store.playbook);
+        toast('Note saved');
+      } catch (err) { toast('Save failed: ' + err.message, 'err'); }
+    }
+  });
+}

@@ -1,0 +1,155 @@
+import { store, bench, catalogStats } from '../data.js';
+import { fmt, esc, hbar, bindBars, stat, card, cvar } from '../ui.js';
+
+export function render() {
+  const b = bench();
+  const s = catalogStats();
+  const lift = (b.noRemedyBig / b.noRemedySmall).toFixed(1);
+  const drop = Math.round((1 - b.musicAvg / b.topTenAvg) * 100);
+
+  const abRows = [
+    { k: 'NO REMEDY — Global Truth (237K)', v: b.noRemedyBig, color: cvar('--good'),
+      note: 'Same song, same week, commentary channel' },
+    { k: 'NO REMEDY — Universal (18.4K)',   v: b.noRemedySmall, color: cvar('--critical'),
+      note: 'Same song, same week, music channel' },
+  ];
+
+  const ceilingRows = s.top10.slice(0, 10).map(t => ({
+    k: t.title.length > 24 ? t.title.slice(0, 23) + '…' : t.title,
+    v: t.views, color: cvar('--series-1'), note: t.credit,
+  }));
+
+  const zahRows = store.catalog
+    .filter(t => (t.artists || []).includes('zah'))
+    .sort((a, b2) => b2.views - a.views)
+    .map(t => ({ k: t.title.length > 24 ? t.title.slice(0, 23) + '…' : t.title,
+                 v: t.views, color: cvar('--series-3'), note: t.credit }));
+
+  return `
+${card(`
+  <h2>The core finding</h2>
+  <p><strong>There is no discovery problem. There is a distribution-of-attention problem.</strong></p>
+  <p class="muted">Breed owns a 237,000-subscriber channel doing ~17,000 views per video, near-daily.
+  It is a spiritual / end-times commentary channel. The music goes out on a different,
+  18,400-subscriber channel doing ~1,400 views per song.</p>
+  <div class="grid g4" style="margin-top:14px">
+    ${stat('Commentary channel', fmt(b.gtAvg), '237K subs · avg views/video')}
+    ${stat('Music channel', fmt(b.musicAvg), '18.4K subs · avg views/song', 'crit')}
+    ${stat('Proven ceiling', fmt(b.topTenAvg), 'top-10 catalog average')}
+    ${stat('Collapse', drop + '%', 'below his own ceiling', 'crit')}
+  </div>`)}
+
+${card(`
+  <h3>1 — The A/B test already ran, accidentally</h3>
+  <p class="muted sm">The only variable was which channel it went out on. YouTube does not transfer
+  algorithmic authority between channels — a second channel starts from zero no matter who owns it.</p>
+  <div id="ab-chart">${hbar(abRows, { rowH: 34, padL: 220, aria: 'NO REMEDY on both channels' })}</div>
+  <div class="callout good" style="margin-top:12px">
+    <strong>${lift}× lift</strong> from changing nothing but the door it walked through.
+    This is the proof of concept for the whole plan.
+  </div>`)}
+
+${card(`
+  <h3>2 — This is a collapse, not a cold start</h3>
+  <p class="muted sm">Breed's own catalog on the same music channel. Dashed line is the
+  current album average.</p>
+  <div id="ceiling-chart">${hbar(ceilingRows, {
+      rowH: 27, padL: 190, ref: b.musicAvg, refLabel: 'album avg ' + fmt(b.musicAvg),
+      aria: 'Top catalog performance versus current album' })}</div>
+  <p class="sm muted" style="margin-top:12px">What changed: a ~10-month gap with no music ·
+  a shift from music videos to static "Official Audio" uploads · drama and callout content mixed
+  into the music feed · 2–3 releases a week so every song cannibalises the last · and the big
+  records were <em>collaborations</em> credited <strong>IamNubreed</strong>, while this album is
+  almost entirely solo and credited five different ways.</p>`)}
+
+${card(`
+  <h3>The Yawitazah pattern — the thing that is working</h3>
+  <p class="muted sm">Every record Zah is on overperforms its neighbours.</p>
+  <div id="zah-chart">${hbar(zahRows, {
+      rowH: 29, padL: 190, ref: b.musicAvg, refLabel: 'album avg',
+      aria: 'Tracks featuring Yawitazah' })}</div>
+  <div class="callout" style="margin-top:12px">
+    Feature average <strong>${fmt(s.featureAvg)}</strong> vs album average
+    <strong>${fmt(s.albumAvg)}</strong> — roughly
+    <strong>${(s.featureAvg / (s.albumAvg || 1)).toFixed(1)}×</strong>.
+    Whatever is happening on those records is the label's most repeatable asset.
+  </div>`)}
+
+${card(`
+  <h3>3 — Embedding is disabled on every video</h3>
+  <span class="badge p-crit">critical</span> <span class="badge p-mute">$0 · 1 hour</span>
+  <p style="margin-top:10px">Loading any label track in an external player returns
+  <code>Error 153 — Video player configuration error</code>. <strong>"Allow embedding" is OFF.</strong></p>
+  <p class="muted sm">Consequence: no blog, no Rapzilla feature, no fan site, no Reddit or Discord
+  preview, no EPK, no artist page can display the music. Every off-platform share is a dead grey box.</p>
+  <p class="sm"><strong>Fix:</strong> YouTube Studio → Content → select all music videos → Edit →
+  More options → <strong>Allow embedding: ON</strong>. Bulk across both channels, then set as
+  default under Settings → Upload defaults → Advanced.</p>`)}
+
+${card(`
+  <h3>4 — Four duplicate Spotify artist pages</h3>
+  <span class="badge p-crit">high</span> <span class="badge p-mute">$0 · ~5 days</span>
+  <p style="margin-top:10px">A Spotify artist search returns <strong>four distinct "King Konnect"
+  profiles</strong>. Each splits the follower count — and follower count drives Release Radar,
+  the only algorithmic placement you are documented-guaranteed.</p>
+  <ol class="sm muted">
+    <li>Identify the page holding his oldest legitimate release — that is canonical.</li>
+    <li>DistroKid → Goodies → <strong>Spotify URI Looker Upper</strong> → grab that URI.</li>
+    <li>Claim it in <strong>Spotify for Artists</strong> first.</li>
+    <li>File one request per stray release at <a href="https://distrokid.com/fixer" target="_blank" rel="noopener">distrokid.com/fixer</a>.</li>
+    <li>Repeat the audit for Breed and JayThaRealist before the next release.</li>
+  </ol>`)}
+
+${card(`
+  <h3>5 — Name collision and metadata chaos</h3>
+  <span class="badge p-crit">high</span>
+  <ul class="sm" style="margin-top:10px">
+    <li><strong>"Nu Breed"</strong> is an established country-rap act. <em>Ride or Die</em> alone has
+    1.8M views; they own the Spotify search result for the name.</li>
+    <li>Own branding is split <strong>six</strong> ways: Nubreed, NuBreed, Nu Breed, IamNubreed,
+    Breed, Nubreed Universal — and <strong>IamNubreed</strong> is the credit on the biggest records.</li>
+    <li>Features credited four ways: JayThaRealist / JayTheRealest / Jay the Realist; and
+    Yawitazah / Yawitizah / Yahwitizah.</li>
+    <li>The same song sits on three channels under three titles, splitting one view count three ways
+    instead of compounding it.</li>
+  </ul>
+  <div class="callout crit">
+    <strong>Fix:</strong> lock <strong>BREED</strong> — short, thumbnail-legible, sidesteps the
+    country act. One spelling per artist. Title format every time:
+    <code>BREED – Song Name (feat. X)</code>
+  </div>`)}
+
+${card(`
+  <h3>The strategy — Sermon-to-Song</h3>
+  <p><strong>Stop marketing the music as music.</strong> The 237K audience did not subscribe for rap.
+  They subscribed for a man telling them the truth about spiritual warfare, betrayal and the end
+  times — which is exactly what the songs are about.</p>
+  <p class="callout">The unit of release is not a song upload. It is a 13-minute commentary video
+  whose final three minutes are the track.</p>
+  <ul class="sm muted">
+    <li><strong>0–10 min</strong> — Breed does what he already does: commentary on the song's exact
+    theme. Title and thumbnail in the channel's proven style. No music branding.</li>
+    <li><strong>~10 min</strong> — "I wrote a record about this. Here it is." Hard cut.</li>
+    <li><strong>10–13 min</strong> — the track, with visuals.</li>
+    <li><strong>End screen</strong> — channel element to the music channel. HyperFollow link pinned
+    in the top comment and description line 1.</li>
+  </ul>
+  <p class="sm muted">YouTube's recommendation model clusters on watch history and penalises videos
+  that end sessions. A bare song ends the session. A teaching that resolves into a song holds the
+  audience it was built for — and the song rides along.</p>`)}
+`;
+}
+
+export function bind(mount) {
+  const b = bench(), s = catalogStats();
+  bindBars(mount.querySelector('#ab-chart'), [
+    { k: 'NO REMEDY — Global Truth (237K)', v: b.noRemedyBig, note: 'Commentary channel' },
+    { k: 'NO REMEDY — Universal (18.4K)',   v: b.noRemedySmall, note: 'Music channel' },
+  ]);
+  bindBars(mount.querySelector('#ceiling-chart'),
+    s.top10.map(t => ({ k: t.title, v: t.views, note: t.credit })));
+  bindBars(mount.querySelector('#zah-chart'),
+    store.catalog.filter(t => (t.artists || []).includes('zah'))
+      .sort((a, c) => c.views - a.views)
+      .map(t => ({ k: t.title, v: t.views, note: t.credit })));
+}
