@@ -226,6 +226,90 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
 .dlg h3 { margin-bottom:.3em; }
 .dlg-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
 
+/* ---------- hero ---------- */
+.hero {
+  position:relative; border-radius:var(--radius); overflow:hidden;
+  border:1px solid var(--line); margin-bottom:20px; background:#000;
+  min-height:400px; display:flex; align-items:flex-end;
+}
+.hero-bg {
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  opacity:.55; filter:saturate(1.05);
+}
+.hero::after {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(to top, rgba(0,0,0,.95) 8%, rgba(0,0,0,.6) 45%, rgba(0,0,0,.25) 100%);
+}
+.hero-body { position:relative; z-index:2; padding:34px 34px 30px; width:100%; color:#fff; }
+.hero-eyebrow {
+  font-size:.72rem; letter-spacing:.18em; text-transform:uppercase; font-weight:700;
+  color:var(--series-2); margin-bottom:10px; display:flex; gap:10px; align-items:center;
+}
+.hero h1 {
+  font-size:clamp(2rem, 5vw, 3.4rem); line-height:1.02; margin:0 0 .25em;
+  letter-spacing:-.035em; font-weight:800; text-shadow:0 2px 24px rgba(0,0,0,.6);
+}
+.hero .sub-line { font-size:1rem; color:rgba(255,255,255,.82); max-width:62ch; margin:0 0 18px; }
+.hero-stats { display:flex; gap:26px; flex-wrap:wrap; margin-bottom:20px; }
+.hero-stat .n { font-size:1.7rem; font-weight:750; line-height:1; font-variant-numeric:tabular-nums; }
+.hero-stat .l { font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.6); margin-top:5px; }
+.hero-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.hero .btn { background:var(--series-2); border-color:var(--series-2); padding:9px 18px; }
+.hero .btn.ghost { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.3); color:#fff; }
+
+/* ---------- project cards ---------- */
+.proj-grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+.proj {
+  border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+  background:var(--surface-1); display:flex; flex-direction:column;
+  transition:transform .15s, border-color .15s;
+}
+.proj:hover { transform:translateY(-2px); border-color:var(--series-2); }
+.proj-art { position:relative; aspect-ratio:16/9; background:var(--surface-2); overflow:hidden; }
+.proj-art img { width:100%; height:100%; object-fit:cover; display:block; }
+.proj-art .tag {
+  position:absolute; top:10px; left:10px; z-index:2;
+  backdrop-filter:blur(6px); background:rgba(0,0,0,.62);
+}
+.proj-body { padding:15px 16px 17px; flex:1; display:flex; flex-direction:column; }
+.proj-body h4 { margin:0 0 3px; font-size:1rem; }
+.proj-meta { font-size:.76rem; color:var(--text-muted); margin-bottom:9px; }
+.proj-body p { font-size:.84rem; color:var(--text-secondary); margin:0; line-height:1.5; }
+
+/* ---------- artist profile ---------- */
+.artist-hero {
+  display:grid; grid-template-columns:260px 1fr; gap:24px; align-items:start;
+  padding:22px; border:1px solid var(--line); border-radius:var(--radius);
+  background:var(--surface-1); margin-bottom:18px;
+}
+.portrait {
+  aspect-ratio:1; border-radius:var(--radius); overflow:hidden;
+  background:var(--surface-2); border:1px solid var(--line); position:relative;
+}
+.portrait img { width:100%; height:100%; object-fit:cover; display:block; }
+.portrait .placeholder {
+  position:absolute; inset:0; display:grid; place-items:center; text-align:center;
+  font-size:.74rem; color:var(--text-muted); padding:16px; line-height:1.5;
+}
+.swot { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+.swot-box { border:1px solid var(--line); border-radius:var(--radius); padding:15px 17px; background:var(--surface-1); }
+.swot-box h4 { margin:0 0 10px; font-size:.78rem; text-transform:uppercase; letter-spacing:.07em; }
+.swot-box ul { margin:0; padding-left:18px; }
+.swot-box li { font-size:.85rem; color:var(--text-secondary); margin-bottom:7px; line-height:1.45; }
+.swot-box.s { border-left:3px solid var(--good); }
+.swot-box.w { border-left:3px solid var(--critical); }
+.swot-box.o { border-left:3px solid var(--series-1); }
+.swot-box.s h4 { color:var(--good); }
+.swot-box.w h4 { color:var(--critical); }
+.swot-box.o h4 { color:var(--series-1); }
+
+.artist-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.artist-nav .chip { font-size:.86rem; padding:7px 16px; }
+
+@media (max-width:760px) {
+  .artist-hero { grid-template-columns:1fr; }
+  .portrait { max-width:260px; }
+}
 @media (max-width:640px) {
   .topbar { flex-wrap:wrap; }
   .tabs { top:auto; position:static; }
