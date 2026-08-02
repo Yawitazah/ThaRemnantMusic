@@ -61,10 +61,17 @@ export function hbar(rows, opts = {}) {
   const plotW = W - padL - padR;
   const sc = v => (v / max) * plotW;
 
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opts.aria || 'bar chart')}">`;
-  for (let i = 1; i <= 4; i++) {
+  const axisH = opts.axis === false ? 0 : 16;
+  const H2 = H + axisH;
+  const baseY = padT + rows.length * rowH;
+
+  let s = `<svg viewBox="0 0 ${W} ${H2}" role="img" aria-label="${esc(opts.aria || 'bar chart')}">`;
+  for (let i = 0; i <= 4; i++) {
     const gx = padL + (plotW / 4) * i;
-    s += `<line class="grid-line" x1="${gx}" y1="${padT}" x2="${gx}" y2="${padT + rows.length * rowH}"/>`;
+    if (i > 0) s += `<line class="grid-line" x1="${gx}" y1="${padT}" x2="${gx}" y2="${baseY}"/>`;
+    if (axisH) {
+      s += `<text class="axis-tick" x="${gx}" y="${H2 - 3}" text-anchor="${i === 0 ? 'start' : 'middle'}">${fmt((max / 4) * i)}</text>`;
+    }
   }
   rows.forEach((r, i) => {
     const y = padT + i * rowH, bh = 14, by = y + (rowH - bh) / 2;
