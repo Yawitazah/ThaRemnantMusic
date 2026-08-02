@@ -43,7 +43,12 @@ export function render() {
       </div>
       <p class="muted sm" style="margin:.35em 0 .9em">${esc(a.role || '')}</p>
       <table class="kv"><tbody>
-        ${kv('Primary channel', `<strong>${esc(a.channel_name || '—')}</strong>`)}
+        ${kv('Primary channel', own?.url
+            ? `<a href="${esc(own.url)}" target="_blank" rel="noopener"><strong>${esc(a.channel_name || '—')}</strong></a>`
+            : `<strong>${esc(a.channel_name || '—')}</strong>`)}
+        ${a.handle && a.handle !== '—' ? kv('Handle', own?.url
+            ? `<a href="${esc(own.url)}" target="_blank" rel="noopener">${esc(a.handle)}</a>`
+            : esc(a.handle)) : ''}
         ${kv('Subscribers', a.subs ? fmt(a.subs) : '—')}
         ${kv('Videos', a.videos ? fmt(a.videos) : '—')}
         ${kv('Recent avg views', a.recent_avg ? fmt(a.recent_avg) : '—')}
@@ -56,7 +61,9 @@ export function render() {
   const standings = store.channels.map(c => `
     <tr>
       <td><strong>${esc(c.artist_name || '—')}</strong></td>
-      <td class="muted">${esc(c.name)}</td>
+      <td class="muted">${c.url
+        ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.name)}</a>`
+        : esc(c.name)}${c.handle ? `<br><span class="sm">${esc(c.handle)}</span>` : ''}</td>
       <td class="r num">${c.subs ? fmt(c.subs) : '—'}</td>
       <td class="r num">${c.videos ? fmt(c.videos) : '—'}</td>
       <td class="r num">${c.recent_avg ? fmt(c.recent_avg) : '—'}</td>
