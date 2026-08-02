@@ -86,7 +86,7 @@ ${card(`
 
 ${card(`
   <h3>The Yawitazah pattern — the thing that is working</h3>
-  <p class="muted sm">Every record Zah is on overperforms its neighbours.</p>
+  <p class="muted sm">Every record Yawitazah appears on overperforms its neighbours.</p>
   <div id="zah-chart">${hbar(zahRows, {
       rowH: 29, padL: 190, ref: b.musicAvg, refLabel: 'album avg',
       aria: 'Tracks featuring Yawitazah' })}</div>
@@ -113,7 +113,7 @@ ${card(`
   <span class="badge p-crit">high</span> <span class="badge p-mute">$0 · ~5 days</span>
   <p style="margin-top:10px">A Spotify artist search returns <strong>four distinct "King Konnect"
   profiles</strong>. Each splits the follower count — and follower count drives Release Radar,
-  the only algorithmic placement you are documented-guaranteed.</p>
+  the only algorithmic placement the label is documented-guaranteed.</p>
   <ol class="sm muted">
     <li>Identify the page holding his oldest legitimate release — that is canonical.</li>
     <li>DistroKid → Goodies → <strong>Spotify URI Looker Upper</strong> → grab that URI.</li>

@@ -120,10 +120,10 @@ ${card(`
       <tr><td><strong>YouTube Content ID on leased beats</strong></td>
           <td class="muted">DistroKid's Social Media Pack excludes beats, loops and sample-library
           audio. Enabling it on ineligible tracks produces false claims against other creators and
-          against yourself. <strong>Don't.</strong></td></tr>
+          against the label's own uploads. <strong>Don't.</strong></td></tr>
       <tr><td><strong>Spotify Discovery Mode</strong></td>
           <td class="muted">Requires 25,000+ monthly listeners and costs a 30% royalty commission.
-          Not available to you yet — don't budget for it.</td></tr>
+          Not available at the label's current scale — not worth budgeting for.</td></tr>
       <tr><td><strong>TikTok Spark Ads</strong></td>
           <td class="muted">Cheapest CPM on the market, but the campaign floor is ~$50/day. Out of
           reach at $500/mo. Post organically instead.</td></tr>

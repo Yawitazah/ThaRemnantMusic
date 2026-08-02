@@ -57,7 +57,7 @@ ${card(`
     <strong>Nubreed Global Truth</strong>. Nubreed Universal Ent. stays alive as the catalog archive,
     but it stops being the primary release door. Cross-posting the same song under three titles on
     three channels stops entirely — one canonical upload, everything else links to it.</p>
-    <p class="sm muted" style="margin:0"><strong>Why:</strong> your own A/B test already ran.
+    <p class="sm muted" style="margin:0"><strong>Why:</strong> the A/B test already ran, by accident.
     NO REMEDY did 4,797 on the big channel and 972 on the small one. That is not a theory,
     it is a result.</p>
   </div>

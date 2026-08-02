@@ -45,7 +45,7 @@ export function render() {
 ${card(`
   <h2>Album ledger — the 2026 record</h2>
   <p class="muted sm">Nine tracks, released 2–30 July 2026, mostly on the 18.4K channel.
-  YouTube views were scraped live. Stream counts are yours to fill in from DistroKid → Bank → Stats
+  YouTube views were scraped live. Stream counts are logged by hand from DistroKid → Bank → Stats
   and Spotify for Artists.</p>
   <div class="grid g4">
     ${stat('YouTube views', fmt(t.yt), 'all 9 tracks')}

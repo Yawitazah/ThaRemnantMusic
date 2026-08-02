@@ -67,7 +67,7 @@ ${card(`
 
 ${card(`
   <h3>Goal model — the road to 100,000 streams</h3>
-  <p class="muted sm">Drag the assumptions. This is arithmetic, not a forecast — it tells you what
+  <p class="muted sm">Drag the assumptions. This is arithmetic, not a forecast — it shows what
   would have to be true, not what will happen.</p>
   <div class="grid g2" style="margin-top:14px">
     <div>
@@ -147,7 +147,7 @@ export function bind(mount) {
       await updateRow('budget_lines', id, { amount }, store.budget);
       const total = store.budget.reduce((s, b) => s + Number(b.amount), 0);
       mount.querySelector('#b-total').textContent = money(total);
-      toast(total > 500 ? `Saved — but you are ${money(total - 500)} over the cap` : 'Saved');
+      toast(total > 500 ? `Saved — ${money(total - 500)} over the monthly cap` : 'Saved');
     } catch (err) {
       toast('Save failed: ' + err.message, 'err');
     } finally { inp.disabled = false; }
