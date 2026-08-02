@@ -167,7 +167,22 @@ input[type=range] { width:100%; accent-color:var(--series-1); }
 svg { display:block; width:100%; height:auto; overflow:visible; }
 .bar-label { font-size:11px; fill:var(--text-secondary); }
 .bar-val   { font-size:11px; fill:var(--text-primary); font-weight:600; }
+.axis-tick { font-size:10px; fill:var(--text-muted); }
 .grid-line { stroke:var(--line); stroke-width:1; }
+
+/* Label / value rows — far more scannable than stacked stat blocks for detail data */
+.kv { width:100%; border-collapse:collapse; margin:2px 0 0; }
+.kv td { padding:7px 0; border-bottom:1px solid var(--line); vertical-align:top; font-size:.86rem; }
+.kv tr:last-child td { border-bottom:0; }
+.kv td:first-child { color:var(--text-muted); white-space:nowrap; padding-right:14px; }
+.kv td:last-child { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+.kv td.wrap { text-align:right; font-weight:400; color:var(--text-secondary); font-size:.82rem; }
+
+.verdict {
+  margin-top:14px; padding-top:13px; border-top:1px solid var(--line);
+  font-size:.85rem; color:var(--text-secondary); line-height:1.5;
+}
+.artist-name { font-size:1.15rem; font-weight:700; letter-spacing:-.01em; }
 .tip {
   position:fixed; z-index:90; background:var(--surface-2); border:1px solid var(--line);
   border-radius:7px; padding:7px 10px; font-size:.8rem; max-width:270px;
