@@ -41,11 +41,15 @@ export function render() {
       </div>
     </article>`;
 
+  const heroId = now?.hero_video_id || now?.art_video_id || '';
+
   return `
-<section class="hero">
-  ${now?.hero_video_id || now?.art_video_id
-    ? `<img class="hero-bg" src="${art(now.hero_video_id || now.art_video_id)}" alt="${esc(now.title)}"
-         onerror="this.onerror=null;this.src='${artFallback(now.hero_video_id || now.art_video_id)}'">`
+<section class="hero" data-hero-video="${esc(heroId)}">
+  ${heroId
+    ? `<img class="hero-bg" src="${art(heroId)}" alt="${esc(now.title)}"
+         onerror="this.onerror=null;this.src='${artFallback(heroId)}'">
+       <div class="hero-video" id="hero-video"><div id="hero-player"></div></div>
+       <div class="hero-note" id="hero-note" hidden></div>`
     : ''}
   <div class="hero-body">
     <div class="hero-eyebrow">
@@ -111,4 +115,79 @@ ${card(`
         </div>
       </article>`).join('')}
   </div>`)}`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Hero background video.
+ *
+ * The still image is always painted first. The player is layered over it
+ * and only faded in once YouTube reports it is actually playing, so a
+ * blocked embed (error 101/150/153 — "Allow embedding" switched off)
+ * leaves the artwork untouched rather than showing an error panel.
+ * ------------------------------------------------------------------ */
+
+let apiPromise = null;
+function youtubeApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT);
+  if (apiPromise) return apiPromise;
+  apiPromise = new Promise((resolve, reject) => {
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { prev?.(); resolve(window.YT); };
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    s.onerror = () => reject(new Error('YouTube API failed to load'));
+    document.head.appendChild(s);
+    setTimeout(() => reject(new Error('YouTube API timed out')), 8000);
+  });
+  return apiPromise;
+}
+
+const EMBED_BLOCKED = new Set([101, 150, 153]);
+
+export function bind(mount) {
+  const hero  = mount.querySelector('.hero[data-hero-video]');
+  const layer = mount.querySelector('#hero-video');
+  const note  = mount.querySelector('#hero-note');
+  const id    = hero?.dataset.heroVideo;
+  if (!hero || !layer || !id) return;
+
+  const blocked = msg => {
+    layer.classList.remove('on');
+    layer.innerHTML = '';
+    if (!note) return;
+    note.hidden = false;
+    note.innerHTML = msg;
+  };
+
+  youtubeApi().then(YT => {
+    let player;
+    player = new YT.Player('hero-player', {
+      videoId: id,
+      playerVars: {
+        autoplay: 1, mute: 1, controls: 0, loop: 1, playlist: id,
+        modestbranding: 1, rel: 0, playsinline: 1, disablekb: 1,
+        iv_load_policy: 3, fs: 0,
+      },
+      events: {
+        onReady: e => { e.target.mute(); e.target.playVideo(); },
+        onStateChange: e => {
+          // Fade in only on real playback, and restart rather than trusting `loop`.
+          if (e.data === YT.PlayerState.PLAYING) layer.classList.add('on');
+          if (e.data === YT.PlayerState.ENDED) { player.seekTo(0); player.playVideo(); }
+        },
+        onError: e => {
+          if (EMBED_BLOCKED.has(e.data)) {
+            blocked('<strong>Embedding is off</strong> for this video, so it can\'t play here — '
+                  + 'the same reason no blog or EPK can show it. Turn on "Allow embedding" in '
+                  + 'YouTube Studio and this hero starts playing on its own.');
+          } else {
+            blocked('Video could not load (error ' + e.data + ').');
+          }
+        },
+      },
+    });
+  }).catch(() => {
+    // No API, no autoplay — the artwork alone is a perfectly good hero.
+    layer.remove();
+  });
 }
