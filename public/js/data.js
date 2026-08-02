@@ -19,11 +19,14 @@ export const store = {
   weeks: [],
   platforms: [],
   collisions: [],
+  zahTracks: [],
   settings: {},
   session: null,
 };
 
-export const isAdmin = () => !!store.session;
+// The dashboard is read-only. Data changes are made through Claude via MCP,
+// so nobody needs an account and there is no sign-in to forget.
+export const isAdmin = () => false;
 
 const TABLES = [
   ['channels',        'channels',         'sort_order'],
@@ -37,6 +40,7 @@ const TABLES = [
   ['weeks',           'weekly_snapshots', 'week_of.desc'],
   ['platforms',       'platforms',        'sort_order'],
   ['collisions',      'name_collisions',  'sort_order'],
+  ['zahTracks',       'zah_tracks',       'sort_order'],
 ];
 
 export async function loadAll() {

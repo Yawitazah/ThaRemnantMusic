@@ -1,6 +1,6 @@
-// App shell: auth, routing, tab rendering.
+// App shell: routing and tab rendering. Read-only — data is maintained through Claude.
 
-import { sb, store, loadAll, isAdmin, catalogStats } from './data.js';
+import { store, loadAll, catalogStats } from './data.js';
 import { $, toast, hideTip } from './ui.js';
 
 import * as executive from './tabs/executive.js';
@@ -34,22 +34,11 @@ function draw() {
   history.replaceState(null, '', '#' + currentTab);
 }
 
-function setMode() {
-  const admin = isAdmin();
-  $('#mode-banner').hidden = !admin;
-  const btn = $('#auth-btn');
-  btn.textContent = admin ? `Sign out (${store.session.user.email})` : 'Sign in to edit';
-  btn.classList.toggle('ghost', admin);
-}
-
 /* ---------- boot ---------- */
 
 async function boot() {
   const syncEl = $('#sync-state');
   try {
-    const { data } = await sb.auth.getSession();
-    store.session = data.session;
-
     await loadAll();
 
     syncEl.textContent = 'live';
@@ -58,7 +47,6 @@ async function boot() {
     $('#foot-counts').textContent =
       `${s.total} tracks · ${store.playbook.length} playbook items · ${store.opps.length} opportunities`;
 
-    setMode();
     draw();
   } catch (err) {
     syncEl.textContent = 'offline';
@@ -101,45 +89,6 @@ applyTheme((() => { try { return localStorage.getItem('remnant-theme') || 'dark'
 themeBtn.addEventListener('click', () => {
   applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
   draw(); // charts read CSS variables at render time
-});
-
-// Auth
-const dlg = $('#auth-dlg');
-$('#auth-btn').addEventListener('click', async () => {
-  if (isAdmin()) {
-    await sb.auth.signOut();
-    store.session = null;
-    setMode();
-    draw();
-    toast('Signed out — read-only');
-    return;
-  }
-  $('#auth-err').hidden = true;
-  dlg.showModal();
-});
-
-$('#auth-form').addEventListener('submit', async e => {
-  const ok = e.submitter?.value === 'ok';
-  if (!ok) return;
-  e.preventDefault();
-
-  const email = $('#auth-email').value.trim();
-  const password = $('#auth-pass').value;
-  const errEl = $('#auth-err');
-  errEl.hidden = true;
-
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) {
-    errEl.textContent = error.message;
-    errEl.hidden = false;
-    return;
-  }
-  store.session = data.session;
-  $('#auth-pass').value = '';
-  dlg.close();
-  setMode();
-  draw();
-  toast('Signed in — you can edit');
 });
 
 boot();
