@@ -240,6 +240,26 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
   content:''; position:absolute; inset:0;
   background:linear-gradient(to top, rgba(0,0,0,.95) 8%, rgba(0,0,0,.6) 45%, rgba(0,0,0,.25) 100%);
 }
+/* Looping background video. Sits above the still, fades in only once it is
+   genuinely playing, so a blocked embed simply leaves the artwork in place. */
+.hero-video {
+  position:absolute; inset:0; overflow:hidden; z-index:1;
+  opacity:0; transition:opacity 1.1s ease; pointer-events:none;
+}
+.hero-video.on { opacity:.5; }
+.hero-video iframe {
+  position:absolute; top:50%; left:50%;
+  width:100vw; height:56.25vw; min-height:100%; min-width:177.78%;
+  transform:translate(-50%,-50%); border:0; pointer-events:none;
+}
+.hero-note {
+  position:absolute; top:14px; right:14px; z-index:3;
+  background:rgba(0,0,0,.66); backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.16); border-radius:8px;
+  padding:7px 11px; font-size:.73rem; color:rgba(255,255,255,.85); max-width:290px;
+}
+.hero-note strong { color:var(--warning); }
+
 .hero-body { position:relative; z-index:2; padding:34px 34px 30px; width:100%; color:#fff; }
 .hero-eyebrow {
   font-size:.72rem; letter-spacing:.18em; text-transform:uppercase; font-weight:700;
