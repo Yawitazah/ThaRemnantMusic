@@ -230,7 +230,8 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
 .hero {
   position:relative; border-radius:var(--radius); overflow:hidden;
   border:1px solid var(--line); margin-bottom:20px; background:#000;
-  min-height:400px; display:flex; align-items:flex-end;
+  /* Held at the taller height the centred layout produced. */
+  min-height:470px; display:flex; align-items:flex-end;
 }
 .hero-bg {
   position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
@@ -275,30 +276,28 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
   height:min(78%, 330px); width:auto; opacity:.38;
   filter:brightness(1.12) saturate(1.1) drop-shadow(0 0 30px rgba(0,0,0,.55));
 }
-.hero-watermark.left  { left:-6%;  transform:translateY(-50%) rotate(-6deg); }
-.hero-watermark.right { right:-6%; transform:translateY(-50%) rotate(6deg); }
+/* The copy is left-aligned, so the right-hand mark sits in open space and can
+   read properly, while the left-hand one falls behind the headline and has to
+   stay quiet enough not to fight it. */
+.hero-watermark.left  { left:-6%;  transform:translateY(-50%) rotate(-6deg); opacity:.18; }
+.hero-watermark.right { right:-6%; transform:translateY(-50%) rotate(6deg);  opacity:.40; }
 
-/* Centred column so both watermarks have clear space to sit in. Left-aligned
-   copy ran the full left two-thirds and buried the left-hand mark entirely. */
-.hero-body {
-  position:relative; z-index:3; padding:34px 34px 30px; width:100%; color:#fff;
-  max-width:660px; margin-inline:auto; text-align:center;
-}
+.hero-body { position:relative; z-index:3; padding:34px 34px 30px; width:100%; color:#fff; }
 .hero-eyebrow {
   font-size:.72rem; letter-spacing:.18em; text-transform:uppercase; font-weight:700;
   color:var(--series-2); margin-bottom:10px; display:flex; gap:10px; align-items:center;
-  flex-wrap:wrap; justify-content:center;
+  flex-wrap:wrap;
 }
 .hero-eyebrow .dot { opacity:.5; }
 .hero h1 {
   font-size:clamp(2rem, 5vw, 3.4rem); line-height:1.02; margin:0 0 .25em;
   letter-spacing:-.035em; font-weight:800; text-shadow:0 2px 24px rgba(0,0,0,.6);
 }
-.hero .sub-line { font-size:1rem; color:rgba(255,255,255,.82); max-width:62ch; margin:0 auto 18px; }
-.hero-stats { display:flex; gap:26px; flex-wrap:wrap; margin-bottom:20px; justify-content:center; }
+.hero .sub-line { font-size:1rem; color:rgba(255,255,255,.82); max-width:62ch; margin:0 0 18px; }
+.hero-stats { display:flex; gap:26px; flex-wrap:wrap; margin-bottom:20px; }
 .hero-stat .n { font-size:1.7rem; font-weight:750; line-height:1; font-variant-numeric:tabular-nums; }
 .hero-stat .l { font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.6); margin-top:5px; }
-.hero-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.hero-actions { display:flex; gap:10px; flex-wrap:wrap; }
 .hero .btn { background:var(--series-2); border-color:var(--series-2); padding:9px 18px; }
 .hero .btn.ghost { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.3); color:#fff; }
 
@@ -387,15 +386,6 @@ a.proj:hover h4 { color:var(--series-2); }
 .artist-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
 .artist-nav .chip { font-size:.86rem; padding:7px 16px; }
 
-/* Below this there is no clear space either side of a centred column, so the
-   copy goes back to left-aligned and the marks fall behind it as true
-   watermarks rather than flanking it. */
-@media (max-width:1000px) {
-  .hero-body { max-width:none; text-align:left; }
-  .hero-eyebrow, .hero-stats, .hero-actions { justify-content:flex-start; }
-  .hero .sub-line { margin:0 0 18px; }
-  .hero-watermark { opacity:.20; }
-}
 @media (max-width:760px) {
   .artist-hero { grid-template-columns:1fr; }
   .portrait { max-width:260px; }
@@ -405,10 +395,11 @@ a.proj:hover h4 { color:var(--series-2); }
   .tabs { top:auto; position:static; }
   .view { padding:18px 14px 60px; }
   .card { padding:16px; }
-  /* One mark only on phones — two would crowd the copy. */
-  .hero-watermark { height:52%; opacity:.26; }
+  /* One mark only on phones — two would crowd the copy. Opacity has to be set
+     on the .right rule to beat the per-side desktop values. */
+  .hero-watermark { height:52%; }
   .hero-watermark.left { display:none; }
-  .hero-watermark.right { right:-14%; top:26%; }
+  .hero-watermark.right { right:-14%; top:26%; opacity:.26; }
 }
 @media print {
   .topbar-actions, .tabs, .foot { display:none; }
