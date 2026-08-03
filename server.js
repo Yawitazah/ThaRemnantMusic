@@ -63,8 +63,14 @@ const server = createServer(async (req, res) => {
       return res.end(body);
     }
 
-    const type = TYPES[extname(file).toLowerCase()] || 'application/octet-stream';
-    const cache = extname(file) === '.html' ? 'no-cache' : 'public, max-age=300';
+    const ext = extname(file).toLowerCase();
+    const type = TYPES[ext] || 'application/octet-stream';
+    // Code (html/css/js) is always fetched fresh so every deploy is visible
+    // immediately — at this size the bytes are trivial, and a 5-minute stale
+    // window meant mismatched UI right after each push. Images may cache.
+    const cache = ['.png', '.jpg', '.jpeg', '.svg', '.ico'].includes(ext)
+      ? 'public, max-age=3600'
+      : 'no-cache';
     res.writeHead(200, { 'content-type': type, 'cache-control': cache });
     res.end(body);
   } catch (err) {

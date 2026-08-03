@@ -87,7 +87,11 @@ img.mark { width:42px; height:42px; object-fit:contain; display:block; flex:none
 .tabs {
   display:flex; gap:2px; padding:0 14px; background:var(--surface-1);
   border-bottom:1px solid var(--line); overflow-x:auto; position:sticky; top:67px; z-index:39;
+  /* The bar is a scroller on narrow screens — hide the scrollbar and let the
+     cut-off last label plus edge fade do the affordance work. */
+  scrollbar-width:none;
 }
+.tabs::-webkit-scrollbar { display:none; }
 .tab {
   background:none; border:0; border-bottom:2px solid transparent; color:var(--text-muted);
   padding:11px 14px; font:inherit; font-size:.87rem; cursor:pointer; white-space:nowrap;
@@ -98,6 +102,12 @@ img.mark { width:42px; height:42px; object-fit:contain; display:block; flex:none
 /* ---------- layout ---------- */
 .view { max-width:1180px; margin:0 auto; padding:26px 22px 70px; }
 .loading { color:var(--text-muted); padding:60px 0; text-align:center; }
+.loading-mark {
+  display:block; width:54px; height:54px; object-fit:contain; margin:0 auto 14px;
+  animation:loading-pulse 1.6s ease-in-out infinite;
+}
+@keyframes loading-pulse { 50% { opacity:.35; } }
+:focus-visible { outline:2px solid var(--series-1); outline-offset:2px; }
 .card {
   background:var(--surface-1); border:1px solid var(--line); border-radius:var(--radius);
   padding:20px 22px; margin-bottom:18px;
@@ -141,7 +151,21 @@ th.sortable { cursor:pointer; user-select:none; }
 th.sortable:hover { color:var(--text-primary); }
 td.r, th.r { text-align:right; font-variant-numeric:tabular-nums; }
 tbody tr:hover { background:var(--surface-2); }
-.tbl-wrap { overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:var(--radius); }
+.tbl-wrap {
+  overflow:auto; max-height:70vh; border:1px solid var(--line); border-radius:var(--radius);
+  /* Scroll shadows: soft edges appear only while columns are hidden off-screen,
+     so a wide table on a narrow screen visibly invites a swipe. The first pair
+     of gradients rides the content (background-attachment:local) and masks the
+     shadow pair once the matching edge is fully scrolled into view. */
+  background:
+    linear-gradient(to right, var(--surface-1) 30%, transparent) left / 42px 100%,
+    linear-gradient(to left,  var(--surface-1) 30%, transparent) right / 42px 100%,
+    radial-gradient(farthest-side at 0 50%,    rgba(0,0,0,.42), transparent) left / 15px 100%,
+    radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.42), transparent) right / 15px 100%;
+  background-color:var(--surface-1);
+  background-repeat:no-repeat;
+  background-attachment:local, local, scroll, scroll;
+}
 .tbl-wrap table { font-size:.85rem; }
 
 /* ---------- inputs ---------- */
@@ -391,15 +415,39 @@ a.proj:hover h4 { color:var(--series-2); }
   .portrait { max-width:260px; }
 }
 @media (max-width:640px) {
-  .topbar { flex-wrap:wrap; }
-  .tabs { top:auto; position:static; }
+  /* The topbar scrolls away and the tab bar takes over as the one sticky
+     element — on a 13-section dashboard, navigation must never be a
+     scroll-to-top away. */
+  .topbar { position:static; padding:11px 14px; }
+  .topbar h1 { font-size:.92rem; }
+  .tabs { top:0; padding:0 8px; }
+  .tab { padding:13px 12px; font-size:.85rem; }
   .view { padding:18px 14px 60px; }
-  .card { padding:16px; }
+  .card { padding:16px 14px; }
+  h2 { font-size:1.22rem; }
+  .search { max-width:none; }
+  .stat .v { font-size:1.5rem; }
+  /* Hero: tighter frame on a phone; height comes from the content. */
+  .hero { min-height:0; }
+  .hero-body { padding:24px 18px 22px; }
+  .hero-stats { gap:14px 22px; margin-bottom:16px; }
+  .hero-stat .n { font-size:1.45rem; }
+  .hero-note { top:10px; right:10px; left:10px; max-width:none; }
+  .banner-body { padding:16px 16px; }
+  .banner-body h2 { font-size:1.25rem; }
   /* One mark only on phones — two would crowd the copy. Opacity has to be set
      on the .right rule to beat the per-side desktop values. */
   .hero-watermark { height:52%; }
   .hero-watermark.left { display:none; }
   .hero-watermark.right { right:-14%; top:26%; opacity:.26; }
+}
+/* Fingers, not cursors: give every control a real target. */
+@media (pointer:coarse) {
+  .tab { padding:13px 14px; }
+  .chip { padding:8px 14px; }
+  .btn { padding:9px 16px; }
+  .btn.sm { padding:7px 12px; }
+  .track-list button { padding:12px 12px; }
 }
 @media print {
   .topbar-actions, .tabs, .foot { display:none; }

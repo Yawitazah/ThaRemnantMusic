@@ -40,6 +40,11 @@ function draw() {
 
   document.querySelectorAll('.tab').forEach(t =>
     t.classList.toggle('is-active', t.dataset.t === currentTab));
+  // Keep the active tab centred in view — the bar scrolls horizontally on
+  // phones. Set scrollLeft directly: scrollIntoView also scrolls the page.
+  const bar = document.querySelector('.tabs');
+  const act = bar?.querySelector('.tab.is-active');
+  if (bar && act) bar.scrollLeft = act.offsetLeft - (bar.clientWidth - act.offsetWidth) / 2;
   history.replaceState(null, '', '#' + currentTab + (currentArg ? '/' + encodeURIComponent(currentArg) : ''));
 }
 
