@@ -42,7 +42,6 @@ export function render() {
     const rows = store.platforms.filter(g.match);
     if (!rows.length) return '';
     return `
-${banner({ id: 'Ew8a4T182Vw', title: 'Platforms & identity', sub: 'Every place the label exists, with the link and the ID so anything here can be checked.' })}
     <section class="card">
       <h3>${esc(g.key)}</h3>
       <div class="tbl-wrap" style="max-height:none;margin-top:10px">
@@ -73,6 +72,7 @@ ${banner({ id: 'Ew8a4T182Vw', title: 'Platforms & identity', sub: 'Every place t
   }).join('');
 
   return `
+${banner({ id: 'Ew8a4T182Vw', title: 'Platforms & identity', sub: 'Every place the label exists, with the link and the ID so anything here can be checked.' })}
 ${card(`
   <h2>Platforms &amp; identity</h2>
   <p class="muted sm">Every place the label exists, with the link and the ID, so anything here can be
