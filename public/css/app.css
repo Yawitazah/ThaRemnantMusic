@@ -266,28 +266,33 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
    behind it and made the watermark effectively invisible. */
 .hero-watermark {
   position:absolute; top:50%; z-index:2; pointer-events:none; user-select:none;
-  height:min(86%, 380px); width:auto; opacity:.34;
+  height:min(78%, 330px); width:auto; opacity:.38;
   filter:brightness(1.12) saturate(1.1) drop-shadow(0 0 30px rgba(0,0,0,.55));
 }
 .hero-watermark.left  { left:-6%;  transform:translateY(-50%) rotate(-6deg); }
 .hero-watermark.right { right:-6%; transform:translateY(-50%) rotate(6deg); }
 
-.hero-body { position:relative; z-index:3; padding:34px 34px 30px; width:100%; color:#fff; }
+/* Centred column so both watermarks have clear space to sit in. Left-aligned
+   copy ran the full left two-thirds and buried the left-hand mark entirely. */
+.hero-body {
+  position:relative; z-index:3; padding:34px 34px 30px; width:100%; color:#fff;
+  max-width:660px; margin-inline:auto; text-align:center;
+}
 .hero-eyebrow {
   font-size:.72rem; letter-spacing:.18em; text-transform:uppercase; font-weight:700;
   color:var(--series-2); margin-bottom:10px; display:flex; gap:10px; align-items:center;
-  flex-wrap:wrap;
+  flex-wrap:wrap; justify-content:center;
 }
 .hero-eyebrow .dot { opacity:.5; }
 .hero h1 {
   font-size:clamp(2rem, 5vw, 3.4rem); line-height:1.02; margin:0 0 .25em;
   letter-spacing:-.035em; font-weight:800; text-shadow:0 2px 24px rgba(0,0,0,.6);
 }
-.hero .sub-line { font-size:1rem; color:rgba(255,255,255,.82); max-width:62ch; margin:0 0 18px; }
-.hero-stats { display:flex; gap:26px; flex-wrap:wrap; margin-bottom:20px; }
+.hero .sub-line { font-size:1rem; color:rgba(255,255,255,.82); max-width:62ch; margin:0 auto 18px; }
+.hero-stats { display:flex; gap:26px; flex-wrap:wrap; margin-bottom:20px; justify-content:center; }
 .hero-stat .n { font-size:1.7rem; font-weight:750; line-height:1; font-variant-numeric:tabular-nums; }
 .hero-stat .l { font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.6); margin-top:5px; }
-.hero-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.hero-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
 .hero .btn { background:var(--series-2); border-color:var(--series-2); padding:9px 18px; }
 .hero .btn.ghost { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.3); color:#fff; }
 
@@ -376,6 +381,15 @@ a.proj:hover h4 { color:var(--series-2); }
 .artist-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
 .artist-nav .chip { font-size:.86rem; padding:7px 16px; }
 
+/* Below this there is no clear space either side of a centred column, so the
+   copy goes back to left-aligned and the marks fall behind it as true
+   watermarks rather than flanking it. */
+@media (max-width:1000px) {
+  .hero-body { max-width:none; text-align:left; }
+  .hero-eyebrow, .hero-stats, .hero-actions { justify-content:flex-start; }
+  .hero .sub-line { margin:0 0 18px; }
+  .hero-watermark { opacity:.20; }
+}
 @media (max-width:760px) {
   .artist-hero { grid-template-columns:1fr; }
   .portrait { max-width:260px; }
