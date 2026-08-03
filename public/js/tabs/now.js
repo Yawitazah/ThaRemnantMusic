@@ -163,12 +163,16 @@ export function bind(mount) {
 
   const showArtworkOnly = msg => {
     layer.classList.remove('on');
+    hero.classList.remove('video-on');   // artwork comes back as the backdrop
     layer.innerHTML = '';
     if (note) { note.innerHTML = msg; note.hidden = false; }
   };
 
   const playing = () => {
     layer.classList.add('on');
+    // The still is only a placeholder while the embed loads. Once the video is
+    // genuinely playing it becomes the backdrop and the artwork fades away.
+    hero.classList.add('video-on');
     if (note) note.hidden = true;
   };
 

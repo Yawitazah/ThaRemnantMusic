@@ -234,8 +234,12 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
 }
 .hero-bg {
   position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-  opacity:.55; filter:saturate(1.05);
+  opacity:.55; filter:saturate(1.05); transition:opacity 1.1s ease;
 }
+/* The still is a placeholder for the loading embed only. Once the video is
+   playing it is the backdrop, so the artwork gets out of its way. If the embed
+   is blocked, .video-on is never set and the artwork stays. */
+.hero.video-on .hero-bg { opacity:0; }
 .hero::after {
   content:''; position:absolute; inset:0;
   background:linear-gradient(to top, rgba(0,0,0,.95) 8%, rgba(0,0,0,.6) 45%, rgba(0,0,0,.25) 100%);
@@ -246,7 +250,9 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
   position:absolute; inset:0; overflow:hidden; z-index:1;
   opacity:0; transition:opacity 1.1s ease; pointer-events:none;
 }
-.hero-video.on { opacity:.5; }
+/* Was .5 when it layered over the .55 artwork. Now that it is the only
+   backdrop, lift it so removing the still does not leave the hero dim. */
+.hero-video.on { opacity:.68; }
 .hero-video iframe {
   position:absolute; top:50%; left:50%;
   width:100vw; height:56.25vw; min-height:100%; min-width:177.78%;
