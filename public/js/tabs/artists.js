@@ -31,6 +31,16 @@ export function render() {
   const totalViews = tracks.reduce((s, t) => s + t.views, 0);
   const projects = (store.projects || []).filter(p => p.artist === a.artist);
 
+  // Everywhere this artist can be found, and everything they have put out.
+  const links = (store.platforms || [])
+    .filter(p => p.owner === a.artist && p.url)
+    .map(p => ({ url: p.url, label: p.platform, metric_value: p.metric_value }));
+  if (channel?.url) links.unshift({ label: 'YouTube', url: channel.url, metric_value: channel.subs });
+
+  const releases = (store.releases || []).filter(r => r.artist === a.artist);
+  const own      = releases.filter(r => r.kind !== 'feature');
+  const features = releases.filter(r => r.kind === 'feature');
+
   return `
 <nav class="artist-nav">
   ${people.map(p => `<button class="chip ${p.artist === current ? 'on' : ''}"
@@ -61,8 +71,12 @@ export function render() {
     </div>
 
     <p style="font-size:.92rem;color:var(--text-secondary);line-height:1.6">${esc(a.bio || '')}</p>
-    ${channel?.url ? `<a class="btn sm" href="${esc(channel.url)}" target="_blank" rel="noopener">
-      Open the channel</a>` : ''}
+
+    ${links.length ? `<div class="row" style="margin-top:14px">
+      ${links.map(l => `<a class="btn sm ghost" href="${esc(l.url)}" target="_blank" rel="noopener">
+        ${esc(l.label)}${l.metric_value !== null && l.metric_value !== undefined
+          ? ` · ${fmt(l.metric_value)}` : ''}</a>`).join('')}
+    </div>` : ''}
   </div>
 </section>
 
@@ -98,6 +112,44 @@ ${projects.length ? card(`
         </div>
       </article>`).join('')}
   </div>`) : ''}
+
+
+${releases.length ? card(`
+  <div class="spread">
+    <h3 style="margin:0">Discography</h3>
+    <span class="badge p-mute">${releases.length} releases</span>
+  </div>
+  <p class="muted sm" style="margin:.4em 0 0">Everything out on the DSPs, with a link to each.</p>
+
+  ${own.length ? `
+    <h4 style="margin:18px 0 8px">Own releases</h4>
+    <table class="sm"><tbody>
+      ${own.map(r => `
+        <tr>
+          <td><strong>${esc(r.title)}</strong>
+            ${r.note ? `<br><span class="muted sm">${esc(r.note)}</span>` : ''}</td>
+          <td class="muted sm" style="width:90px">${esc(r.kind)}${r.year ? ' · ' + r.year : ''}</td>
+          <td class="r" style="width:190px">
+            ${r.spotify_url ? `<a class="btn sm ghost" href="${esc(r.spotify_url)}" target="_blank" rel="noopener">Spotify</a> ` : ''}
+            ${r.apple_url ? `<a class="btn sm ghost" href="${esc(r.apple_url)}" target="_blank" rel="noopener">Apple</a>` : ''}
+          </td>
+        </tr>`).join('')}
+    </tbody></table>` : ''}
+
+  ${features.length ? `
+    <h4 style="margin:22px 0 8px">Features on other artists' records</h4>
+    <table class="sm"><tbody>
+      ${features.map(r => `
+        <tr>
+          <td><strong>${esc(r.title)}</strong>
+            ${r.credited_to ? `<br><span class="muted sm">${esc(r.credited_to)}</span>` : ''}</td>
+          <td class="muted sm" style="width:120px">${r.year || ''}${r.note ? '<br>' + esc(r.note) : ''}</td>
+          <td class="r" style="width:190px">
+            ${r.spotify_url ? `<a class="btn sm ghost" href="${esc(r.spotify_url)}" target="_blank" rel="noopener">Spotify</a> ` : ''}
+            ${r.apple_url ? `<a class="btn sm ghost" href="${esc(r.apple_url)}" target="_blank" rel="noopener">Apple</a>` : ''}
+          </td>
+        </tr>`).join('')}
+    </tbody></table>` : ''}`) : ''}
 
 ${top.length ? card(`
   <h3>Best-performing records</h3>
