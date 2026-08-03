@@ -92,14 +92,17 @@ export const store = {
                { artist:'BREED', event:'view', label:null, ref:null, at:'2026-08-02T11:59:00Z' } ],
   hubLinks: [ { id:1, artist:'BREED', label:'YouTube', url:'https://youtube.com/x', kind:'social', active:true, sort_order:10 } ],
 };
-export const sb = { auth:{ getSession:async()=>({data:{session:null}}), signOut:async()=>{}, signInWithPassword:async()=>({data:{},error:null}), signInWithOtp:async()=>({data:{},error:null}), onAuthStateChange:()=>{} }, rpc:async()=>({data:null}), from:()=>({ select:()=>({ order:async()=>({data:[]}) }) }) };
+export const sb = { auth:{ getSession:async()=>({data:{session:null}}), signOut:async()=>{}, signInWithPassword:async()=>({data:{},error:null}), signInWithOtp:async()=>({data:{},error:null}), signUp:async()=>({data:{},error:null}), onAuthStateChange:()=>{} }, rpc:async()=>({data:null}), from:()=>({ select:()=>({ order:()=>({ limit:()=>({ then:f=>f({data:[]}) }), then:f=>f({data:[]}) }) }) }) };
 export let ADMIN = false;
-export const __setAdmin = v => { ADMIN = v; store.isAdminUser = v; };
+export const __setAdmin = v => { ADMIN = v; store.isAdminUser = v; store.isTeam = v; };
 export const isAdmin = () => ADMIN;
 export const canEditHub = () => ADMIN;
 export const initSession = async () => {};
 export const signIn = async () => {};
 export const signOut = async () => {};
+export const signUpPassword = async () => ({});
+export const signInPassword = async () => ({});
+export const claimInvite = async () => ({});
 export const loadAll = async () => store;
 export const updateRow = async (t,id,patch,list) => { const r=list?.find(x=>x.id===id); if(r) Object.assign(r,patch); return r; };
 export const insertRow = async (t,row,list) => { const r={id:Date.now(),...row}; list?.push(r); return r; };
@@ -133,7 +136,7 @@ for (const k of ['window', 'document', 'HTMLElement', 'Node', 'Event', 'CustomEv
 }
 globalThis.confirm = () => true;
 
-const TABS = ['now', 'artists', 'executive', 'diagnosis', 'roster', 'platforms', 'player', 'catalog', 'ledger', 'playbook', 'opps', 'budget', 'tracker'];
+const TABS = ['now', 'artists', 'executive', 'diagnosis', 'roster', 'platforms', 'player', 'catalog', 'ledger', 'playbook', 'opps', 'budget', 'tracker', 'fans'];
 const data = await import(pathToFileURL(join(TMP, 'js', 'data.js')).href);
 
 let failed = 0;

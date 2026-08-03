@@ -1,6 +1,6 @@
 // App shell: routing, tab rendering, hub-activity bell, team sign-in.
 
-import { store, loadAll, catalogStats, sb, initSession, signIn, signOut, isAdmin } from './data.js';
+import { store, loadAll, catalogStats, sb, initSession, signOut, isAdmin } from './data.js';
 import { $, toast, hideTip, esc } from './ui.js';
 
 import * as now       from './tabs/now.js';
@@ -16,8 +16,9 @@ import * as playbook  from './tabs/playbook.js';
 import * as opps      from './tabs/opps.js';
 import * as budget    from './tabs/budget.js';
 import * as tracker   from './tabs/tracker.js';
+import * as fans      from './tabs/fans.js';
 
-const TABS = { now, artists, executive, diagnosis, roster, platforms, player, catalog, ledger, playbook, opps, budget, tracker };
+const TABS = { now, artists, executive, diagnosis, roster, platforms, player, catalog, ledger, playbook, opps, budget, tracker, fans };
 
 /* Routes look like #artists or #artists/BREED — the part after the slash is
    handed to the tab so a card on one page can open a specific record on another. */
@@ -92,6 +93,16 @@ function initBell() {
     if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) panel.hidden = true;
   });
   renderBell();
+
+  // Keep the feed live while the app is open — hub activity shows up on its
+  // own, no refresh needed.
+  setInterval(async () => {
+    if (document.visibilityState !== 'visible') return;
+    try {
+      const { data } = await sb.rpc('hub_recent', { n: 40 });
+      if (data) { store.hubRecent = data; renderBell(); }
+    } catch { /* transient network issues are fine */ }
+  }, 60_000);
 }
 
 /* ---------- team sign-in (footer) ---------- */
@@ -103,21 +114,12 @@ function renderAuth() {
     el.innerHTML = `<span class="muted">${esc(who)}${isAdmin() ? ' · admin' : store.myArtist ? ' · ' + esc(store.myArtist) : ''}</span>
       · <a href="#" id="auth-out">Sign out</a>`;
   } else {
-    el.innerHTML = `<a href="#" id="auth-in">Team sign-in</a>`;
+    el.innerHTML = `<a href="/join">Team sign-in / join</a>`;
   }
 }
 
 function initAuth() {
   $('#foot-auth').addEventListener('click', async e => {
-    if (e.target.id === 'auth-in') {
-      e.preventDefault();
-      const email = prompt('Team email (you get a one-tap sign-in link):');
-      if (!email) return;
-      try {
-        await signIn(email.trim());
-        toast('Check your email for the sign-in link');
-      } catch (err) { toast(err.message, 'err'); }
-    }
     if (e.target.id === 'auth-out') {
       e.preventDefault();
       await signOut();
@@ -200,16 +202,24 @@ function initDashboard() {
   boot();
 }
 
-/* Public artist hubs (/a/{slug}) share this bundle but none of the dashboard
-   chrome — they boot straight into the standalone hub page. */
+/* Installable app shell. The service worker is what makes browsers offer
+   "install"; it passes requests straight through otherwise. */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+/* Public artist hubs (/a/{slug}) and team onboarding (/join) share this bundle
+   but none of the dashboard chrome — they boot straight into standalone pages. */
 const hubSlug = location.pathname.match(/^\/a\/([\w-]+)\/?$/)?.[1];
-if (hubSlug) {
+const isJoin = /^\/join\/?$/.test(location.pathname);
+if (hubSlug || isJoin) {
   document.body.classList.add('hub-mode');
-  import('./hub.js')
-    .then(m => m.boot(hubSlug.toLowerCase()))
-    .catch(() => {
-      $('#view').innerHTML = '<div class="loading">Could not load this page.</div>';
-    });
+  const load = isJoin
+    ? import('./join.js').then(m => m.boot())
+    : import('./hub.js').then(m => m.boot(hubSlug.toLowerCase()));
+  load.catch(() => {
+    $('#view').innerHTML = '<div class="loading">Could not load this page.</div>';
+  });
 } else {
   initDashboard();
 }

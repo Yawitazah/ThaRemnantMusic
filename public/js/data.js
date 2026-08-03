@@ -28,6 +28,7 @@ export const store = {
   hub: {},        // per-artist link-hub analytics, from hub_summary()
   hubRecent: [],  // sanitised recent activity feed, from hub_recent()
   isAdminUser: false,
+  isTeam: false,  // admin or any claimed-invite account
   myArtist: null, // artist this signed-in account belongs to, if any
 };
 
@@ -41,14 +42,16 @@ export async function initSession() {
     const { data: { session } } = await sb.auth.getSession();
     store.session = session;
     if (session) {
-      const [{ data: adm }, { data: mine }] = await Promise.all([
-        sb.rpc('is_admin'), sb.rpc('my_artist'),
+      const [{ data: adm }, { data: mine }, { data: team }] = await Promise.all([
+        sb.rpc('is_admin'), sb.rpc('my_artist'), sb.rpc('is_team'),
       ]);
       store.isAdminUser = !!adm;
       store.myArtist = mine || null;
+      store.isTeam = !!team;
     } else {
       store.isAdminUser = false;
       store.myArtist = null;
+      store.isTeam = false;
     }
   } catch { /* auth is optional — the public dashboard works without it */ }
 }
@@ -59,6 +62,30 @@ export async function signIn(email) {
     options: { emailRedirectTo: location.origin + location.pathname },
   });
   if (error) throw error;
+}
+
+/* Password flow — the team sets their own credentials on /join. */
+export async function signUpPassword(email, password) {
+  const { data, error } = await sb.auth.signUp({
+    email, password,
+    options: { emailRedirectTo: location.origin + '/join' },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function signInPassword(email, password) {
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  await initSession();
+  return data;
+}
+
+export async function claimInvite(code) {
+  const { data, error } = await sb.rpc('claim_invite', { invite_code: code });
+  if (error) throw error;
+  await initSession();
+  return data;
 }
 
 export async function signOut() {

@@ -24,7 +24,78 @@ const BANDS = [
   { k: 'low',  label: 'Under 1K',      test: t => t.views < 1000 },
 ];
 
-const state = { artist: 'all', channel: 'all', band: 'all', sort: 'views', q: '', current: null };
+const state = { artist: 'all', channel: 'all', band: 'all', sort: 'views', q: '', current: null,
+                dspRelease: null, dspPlatform: null };
+
+/* ---------- DSP embeds ---------- */
+
+const embedUrl = (platform, url) => {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (platform === 'spotify') {
+      // open.spotify.com/album/ID → open.spotify.com/embed/album/ID
+      return `https://open.spotify.com/embed${u.pathname}?theme=0`;
+    }
+    if (platform === 'apple') {
+      return `https://embed.music.apple.com${u.pathname}`;
+    }
+    if (platform === 'youtube') {
+      const vid = u.searchParams.get('v') || (u.hostname === 'youtu.be' ? u.pathname.slice(1) : null);
+      const list = u.searchParams.get('list');
+      if (vid) return `https://www.youtube-nocookie.com/embed/${vid}`;
+      if (list) return `https://www.youtube-nocookie.com/embed/videoseries?list=${list}`;
+      return null;
+    }
+  } catch { return null; }
+  return null;
+};
+
+const DSP_PLATFORMS = [
+  { k: 'spotify', label: 'Spotify', url: r => r.spotify_url, h: 352 },
+  { k: 'apple',   label: 'Apple Music', url: r => r.apple_url, h: 450 },
+  { k: 'youtube', label: 'YouTube', url: r => r.youtube_url, h: 0 }, // 0 = 16:9 wrap
+];
+
+function dspHtml() {
+  const releases = (store.releases || []).filter(r => r.spotify_url || r.apple_url || r.youtube_url);
+  if (!releases.length) return '';
+
+  if (!state.dspRelease || !releases.some(r => r.id === state.dspRelease)) {
+    state.dspRelease = releases[0].id;
+  }
+  const rel = releases.find(r => r.id === state.dspRelease);
+  const avail = DSP_PLATFORMS.filter(p => p.url(rel));
+  if (!avail.some(p => p.k === state.dspPlatform)) state.dspPlatform = avail[0]?.k || null;
+  const plat = DSP_PLATFORMS.find(p => p.k === state.dspPlatform);
+  const src = plat ? embedUrl(plat.k, plat.url(rel)) : null;
+
+  return card(`
+    <h3>Stream the releases</h3>
+    <p class="muted sm" style="margin:.3em 0 0">The records as they live on each platform — play them
+    right here the way a fan would.</p>
+    <div class="row" style="margin-top:12px">
+      <label style="margin:0;max-width:320px">Release
+        <select id="dsp-release">
+          ${releases.map(r => `<option value="${r.id}" ${r.id === state.dspRelease ? 'selected' : ''}>
+            ${esc(r.artist)} — ${esc(r.title)}${r.year ? ' (' + r.year + ')' : ''}</option>`).join('')}
+        </select></label>
+      <div class="row" style="align-self:flex-end">
+        ${avail.map(p => `<button class="chip ${state.dspPlatform === p.k ? 'on' : ''}" data-dsp="${p.k}">${p.label}</button>`).join('')}
+      </div>
+    </div>
+    <div id="dsp-embed" style="margin-top:14px">
+      ${src
+        ? plat.h
+          ? `<iframe src="${esc(src)}" style="width:100%;height:${plat.h}px;border:0;border-radius:10px"
+               loading="lazy" allow="autoplay *; encrypted-media *; clipboard-write"
+               sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-presentation"></iframe>`
+          : `<div class="player-wrap"><iframe src="${esc(src)}" title="YouTube"
+               allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+               allowfullscreen loading="lazy"></iframe></div>`
+        : '<p class="muted sm">No embeddable link for this release yet.</p>'}
+    </div>`);
+}
 
 const channels = () => [...new Set(store.catalog.map(t => t.channel).filter(Boolean))].sort();
 
@@ -202,7 +273,9 @@ ${card(`<h3>This selection</h3><div id="p-summary">${summaryHtml(list)}</div>`)}
     </div>
     <div class="track-list" id="p-list" style="margin-top:10px;max-height:640px">${items}</div>
   </section>
-</div>`;
+</div>
+
+${dspHtml()}`;
 }
 
 export function bind(mount, rerender) {
@@ -248,6 +321,16 @@ export function bind(mount, rerender) {
         { k: 'Commentary channel', v: b.gtAvg, note: 'The 237K channel' },
       ]);
     }
+  });
+
+  mount.addEventListener('click', e => {
+    const dspChip = e.target.closest('.chip[data-dsp]');
+    if (dspChip) { state.dspPlatform = dspChip.dataset.dsp; redraw(); }
+  });
+  mount.querySelector('#dsp-release')?.addEventListener('change', e => {
+    state.dspRelease = +e.target.value;
+    state.dspPlatform = null; // re-pick the first platform this release has
+    redraw();
   });
 
   mount.querySelector('#p-channel')?.addEventListener('change', e => { state.channel = e.target.value; redraw(); });

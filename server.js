@@ -15,6 +15,11 @@ const PORT = process.env.PORT || 3000;
    The slug map also personalises the share preview for each hub. */
 const CRM_CAPTURE_URL =
   process.env.CRM_CAPTURE_URL || 'https://zahcrm.com/api/card/zah/capture';
+// Captures also land in the label's own database so the whole team sees every
+// fan in the dashboard's Fans tab. The publishable key is public by design;
+// row-level security only allows inserts here.
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://upfqppdfckqehzgsosdi.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_c0j0FTpd3X-joAr673KR4A_NmMGSP7u';
 const HUBS = {
   breed:       { name: 'BREED',         image: '/img/og-card.jpg' },
   kingkonnect: { name: 'King Konnect',  image: '/img/og-card.jpg' },
@@ -27,6 +32,7 @@ const TYPES = {
   '.js':   'text/javascript; charset=utf-8',
   '.css':  'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.svg':  'image/svg+xml',
   '.png':  'image/png',
   '.jpg':  'image/jpeg',
@@ -62,25 +68,34 @@ const server = createServer(async (req, res) => {
         res.writeHead(400, { 'content-type': 'application/json' });
         return res.end('{"error":"artist and a valid email are required"}');
       }
-      try {
-        const crm = await fetch(CRM_CAPTURE_URL, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            name: name || email,
-            email,
-            group: `Remnant - ${artist}`,
-            source: 'remnant_hub',
-            notes: `Joined ${artist}'s list from the Remnant link hub.`,
-          }),
-          signal: AbortSignal.timeout(8000),
-        });
-        res.writeHead(crm.ok ? 200 : 502, { 'content-type': 'application/json' });
-        return res.end(JSON.stringify({ ok: crm.ok }));
-      } catch {
-        res.writeHead(502, { 'content-type': 'application/json' });
-        return res.end('{"ok":false}');
-      }
+      // Own database first (the team's Fans tab), CRM second (outreach).
+      const own = fetch(`${SUPABASE_URL}/rest/v1/hub_captures`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'content-type': 'application/json',
+          prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ artist, name: name || null, email }),
+        signal: AbortSignal.timeout(8000),
+      }).catch(() => null);
+      const crm = fetch(CRM_CAPTURE_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: name || email,
+          email,
+          group: `Remnant - ${artist}`,
+          source: 'remnant_hub',
+          notes: `Joined ${artist}'s list from the Remnant link hub.`,
+        }),
+        signal: AbortSignal.timeout(8000),
+      }).catch(() => null);
+      const [ownRes, crmRes] = await Promise.all([own, crm]);
+      const ok = !!(ownRes?.ok || crmRes?.ok);
+      res.writeHead(ok ? 200 : 502, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ ok }));
     }
 
     // Hub pages share the SPA shell, but each gets its own share preview.

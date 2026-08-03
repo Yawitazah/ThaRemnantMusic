@@ -96,7 +96,7 @@ export async function boot(slug) {
         <span class="muted sm">${esc(r.kind || '')}${r.year ? ' · ' + r.year : ''}${
           r.credited_to ? ' · ' + esc(r.credited_to) : ''}</span>
       </div>
-      <div class="hub-dsps">${dsp(r, 'Spotify', r.spotify_url)}${dsp(r, 'Apple', r.apple_url)}</div>
+      <div class="hub-dsps">${dsp(r, 'Spotify', r.spotify_url)}${dsp(r, 'Apple', r.apple_url)}${dsp(r, 'YouTube', r.youtube_url)}</div>
     </li>`;
 
   view.innerHTML = `

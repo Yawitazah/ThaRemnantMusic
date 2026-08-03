@@ -4,6 +4,7 @@ import { imgTag } from './now.js';
 
 let current = null;
 let editorOpen = false;
+let range = '28d'; // growth window: 7d | 28d | all
 
 /** Called by the router when the URL is #artists/<name>. */
 export function setArg(name) { if (name) current = name; }
@@ -27,8 +28,8 @@ const releaseTable = (heading, rows, credit) => !rows.length ? '' : `
         </td>
         <td class="muted sm" style="width:110px;white-space:nowrap">${
           credit ? (r.year || '') : esc(r.kind || '') + (r.year ? ' · ' + r.year : '')}</td>
-        <td class="r" style="width:170px;white-space:nowrap">
-          ${dsp(r.spotify_url, 'Spotify')}${dsp(r.apple_url, 'Apple')}
+        <td class="r" style="width:240px;white-space:nowrap">
+          ${dsp(r.spotify_url, 'Spotify')}${dsp(r.apple_url, 'Apple')}${dsp(r.youtube_url, 'YouTube')}
         </td>
       </tr>`).join('')}
   </tbody></table>`;
@@ -49,16 +50,33 @@ const ago = iso => {
   return Math.round(s / 86400) + 'd ago';
 };
 
+const RANGES = [
+  { k: '7d',  label: '7 days',  days: 7 },
+  { k: '28d', label: '28 days', days: 28 },
+  { k: 'all', label: 'All time', days: 56 },
+];
+
 function growth(a) {
   const h = (store.hub || {})[a.artist];
   const slug = a.slug || a.artist.toLowerCase().replace(/\s+/g, '');
   const hubUrl = `${location.origin}/a/${slug}`;
   const canEdit = canEditHub(a.artist);
 
-  const views28 = h?.views_28d || 0, clicks28 = h?.clicks_28d || 0;
+  const pick = suffix => ({
+    views: h?.[`views_${suffix}`] || 0,
+    clicks: h?.[`clicks_${suffix}`] || 0,
+    captures: h?.[`captures_${suffix}`] ?? null,
+  });
+  const r = range === 'all' ? pick('total') : pick(range);
+  const views28 = r.views, clicks28 = r.clicks;
   const ctr = views28 ? Math.round((clicks28 / views28) * 100) : 0;
+  const rangeLabel = RANGES.find(x => x.k === range).label.toLowerCase();
+  const rangeDays = RANGES.find(x => x.k === range).days;
 
-  const daily = (h?.daily || []).map(d => ({ k: d.d.slice(5), v: d.views }));
+  const cutoff = Date.now() - rangeDays * 86400_000;
+  const daily = (h?.daily || [])
+    .filter(d => new Date(d.d).getTime() >= cutoff)
+    .map(d => ({ k: d.d.slice(5), v: d.views }));
   const linkRows = (h?.links || []).filter(l => l.clicks > 0)
     .map(l => ({ k: l.label, v: l.clicks }));
 
@@ -103,20 +121,27 @@ function growth(a) {
         <p class="muted sm" style="margin:.3em 0 0">First-party numbers from the public link hub — every view and button press.</p>
       </div>
       <div class="row">
-        <a class="btn sm ghost" href="${esc(hubUrl)}" target="_blank" rel="noopener">Open hub</a>
+        <a class="btn sm ghost" href="${esc(hubUrl)}" target="_blank" rel="noopener">View hub</a>
         <button class="btn sm ghost" id="hub-copy" data-url="${esc(hubUrl)}" type="button">Copy link</button>
         ${canEdit ? `<button class="btn sm ghost" id="hub-edit-toggle" type="button">${editorOpen ? 'Close editor' : 'Edit hub'}</button>` : ''}
       </div>
     </div>
 
-    <div class="grid g4" style="margin-top:14px">
-      ${stat('Hub views · 28d', fmt(views28), `${fmt(h?.views_total || 0)} all time`)}
-      ${stat('Link clicks · 28d', fmt(clicks28), `${fmt(h?.clicks_total || 0)} all time`)}
-      ${stat('Click-through', views28 ? ctr + '%' : '—', 'clicks per visit', ctr >= 50 ? 'good' : '')}
-      ${stat('Fans captured', fmt(h?.captures_total || 0), h?.captures_28d ? `${fmt(h.captures_28d)} in 28d` : 'via the hub email form', h?.captures_total ? 'good' : '')}
+    <div class="row" style="margin-top:14px">
+      ${RANGES.map(x => `<button class="chip ${range === x.k ? 'on' : ''}" data-range="${x.k}">${x.label}</button>`).join('')}
     </div>
 
-    ${daily.length >= 2 ? `<div style="margin-top:16px">${line(daily, { aria: 'daily hub views' })}</div>` : ''}
+    <div class="grid g4" style="margin-top:12px">
+      ${stat(`Hub views · ${rangeLabel}`, fmt(views28), `${fmt(h?.views_total || 0)} all time`)}
+      ${stat(`Link clicks · ${rangeLabel}`, fmt(clicks28), `${fmt(h?.clicks_total || 0)} all time`)}
+      ${stat('Click-through', views28 ? ctr + '%' : '—', `clicks per visit, ${rangeLabel}`, ctr >= 50 ? 'good' : '')}
+      ${stat('Fans captured', fmt((range === 'all' ? h?.captures_total : r.captures) || 0),
+          range === 'all' ? 'via the hub email form' : `${fmt(h?.captures_total || 0)} all time`,
+          h?.captures_total ? 'good' : '')}
+    </div>
+
+    ${daily.length >= 2 ? `<div style="margin-top:16px">${line(daily, { aria: 'daily hub views' })}</div>`
+      : daily.length === 1 ? `<p class="muted sm" style="margin-top:12px">Daily chart appears once there are two days of traffic in this window.</p>` : ''}
     ${linkRows.length ? `<h4 style="margin:18px 0 8px">Clicks by destination</h4><div id="hub-bars">${hbar(linkRows, { aria: 'clicks per link' })}</div>` : ''}
     ${!h ? `<div class="callout" style="margin-top:14px"><strong>No traffic yet.</strong>
       Share the hub link — every visit and tap lands here the moment it happens.</div>` : ''}
@@ -301,6 +326,9 @@ export function bind(mount, rerender) {
   mount.addEventListener('click', async e => {
     const chip = e.target.closest('.chip[data-artist]');
     if (chip) { current = chip.dataset.artist; editorOpen = false; rerender(); return; }
+
+    const rangeChip = e.target.closest('.chip[data-range]');
+    if (rangeChip) { range = rangeChip.dataset.range; rerender(); return; }
 
     if (e.target.id === 'hub-copy') {
       try {
