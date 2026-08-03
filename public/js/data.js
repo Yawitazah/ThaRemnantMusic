@@ -25,11 +25,46 @@ export const store = {
   releases: [],
   settings: {},
   session: null,
+  hub: {},        // per-artist link-hub analytics, from hub_summary()
+  hubRecent: [],  // sanitised recent activity feed, from hub_recent()
+  isAdminUser: false,
+  myArtist: null, // artist this signed-in account belongs to, if any
 };
 
-// The dashboard is read-only. Data changes are made through Claude via MCP,
-// so nobody needs an account and there is no sign-in to forget.
-export const isAdmin = () => false;
+// Viewing stays open to everyone. Signing in (magic link) unlocks editing:
+// admins edit everything, an artist account edits its own link hub.
+export const isAdmin = () => store.isAdminUser;
+export const canEditHub = artist => store.isAdminUser || store.myArtist === artist;
+
+export async function initSession() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    store.session = session;
+    if (session) {
+      const [{ data: adm }, { data: mine }] = await Promise.all([
+        sb.rpc('is_admin'), sb.rpc('my_artist'),
+      ]);
+      store.isAdminUser = !!adm;
+      store.myArtist = mine || null;
+    } else {
+      store.isAdminUser = false;
+      store.myArtist = null;
+    }
+  } catch { /* auth is optional — the public dashboard works without it */ }
+}
+
+export async function signIn(email) {
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: location.origin + location.pathname },
+  });
+  if (error) throw error;
+}
+
+export async function signOut() {
+  try { await sb.auth.signOut(); } catch {}
+  store.session = null; store.isAdminUser = false; store.myArtist = null;
+}
 
 const TABLES = [
   ['channels',        'channels',         'sort_order'],
@@ -64,6 +99,15 @@ export async function loadAll() {
       if (error) throw new Error(`settings: ${error.message}`);
       store.settings = Object.fromEntries((data || []).map(r => [r.key, r.value]));
     })
+  );
+
+  // Link-hub analytics ride along but must never block the dashboard.
+  jobs.push(
+    sb.rpc('hub_summary').then(({ data }) => { store.hub = data || {}; }).catch(() => {}),
+    sb.rpc('hub_recent', { n: 40 }).then(({ data }) => { store.hubRecent = data || []; }).catch(() => {}),
+    sb.from('hub_links').select('*').order('sort_order')
+      .then(({ data }) => { store.hubLinks = data || []; }).catch(() => {}),
+    initSession(),
   );
 
   await Promise.all(jobs);

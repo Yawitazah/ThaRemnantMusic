@@ -82,11 +82,24 @@ export const store = {
   settings: { benchmarks:{ gtAvg:17140, musicAvg:1406, priorAvg:8109, noRemedyBig:4797, noRemedySmall:972, featureAvg:10514, topTenAvg:50245 },
               goal_model:{ perMonth:2, reach:17140, ctr:6, streamsPerListener:3, target:100000 } },
   session: null,
+  isAdminUser: false,
+  myArtist: null,
+  hub: { BREED: { views_total: 40, clicks_total: 22, captures_total: 3, views_7d: 12, clicks_7d: 8,
+                  views_28d: 30, clicks_28d: 18, captures_28d: 2,
+                  daily: [ { d:'2026-07-30', views: 4, clicks: 2 }, { d:'2026-07-31', views: 8, clicks: 6 } ],
+                  links: [ { label:'YouTube', clicks: 12 }, { label:'Spotify', clicks: 6 } ] } },
+  hubRecent: [ { artist:'BREED', event:'click', label:'YouTube', ref:'instagram.com', at:'2026-08-02T12:00:00Z' },
+               { artist:'BREED', event:'view', label:null, ref:null, at:'2026-08-02T11:59:00Z' } ],
+  hubLinks: [ { id:1, artist:'BREED', label:'YouTube', url:'https://youtube.com/x', kind:'social', active:true, sort_order:10 } ],
 };
-export const sb = { auth:{ getSession:async()=>({data:{session:null}}), signOut:async()=>{}, signInWithPassword:async()=>({data:{},error:null}) } };
+export const sb = { auth:{ getSession:async()=>({data:{session:null}}), signOut:async()=>{}, signInWithPassword:async()=>({data:{},error:null}), signInWithOtp:async()=>({data:{},error:null}), onAuthStateChange:()=>{} }, rpc:async()=>({data:null}), from:()=>({ select:()=>({ order:async()=>({data:[]}) }) }) };
 export let ADMIN = false;
-export const __setAdmin = v => { ADMIN = v; };
+export const __setAdmin = v => { ADMIN = v; store.isAdminUser = v; };
 export const isAdmin = () => ADMIN;
+export const canEditHub = () => ADMIN;
+export const initSession = async () => {};
+export const signIn = async () => {};
+export const signOut = async () => {};
 export const loadAll = async () => store;
 export const updateRow = async (t,id,patch,list) => { const r=list?.find(x=>x.id===id); if(r) Object.assign(r,patch); return r; };
 export const insertRow = async (t,row,list) => { const r={id:Date.now(),...row}; list?.push(r); return r; };
@@ -115,7 +128,7 @@ await writeFile(join(TMP, 'js', 'data.js'), MOCK, 'utf8');
 const html = await readFile(join(ROOT, 'public', 'index.html'), 'utf8');
 const dom = new JSDOM(html, { url: 'http://localhost/', pretendToBeVisual: true });
 for (const k of ['window', 'document', 'HTMLElement', 'Node', 'Event', 'CustomEvent',
-                 'getComputedStyle', 'localStorage', 'history']) {
+                 'getComputedStyle', 'localStorage', 'history', 'location']) {
   try { globalThis[k] = dom.window[k]; } catch { /* read-only global in this Node build */ }
 }
 globalThis.confirm = () => true;

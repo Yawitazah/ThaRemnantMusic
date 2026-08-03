@@ -10,6 +10,18 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), 'public');
 const PORT = process.env.PORT || 3000;
 
+/* Public artist link hubs live at /a/{slug}. Fan email capture posts here and
+   is forwarded server-side to Zah CRM (the browser can't cross-origin POST).
+   The slug map also personalises the share preview for each hub. */
+const CRM_CAPTURE_URL =
+  process.env.CRM_CAPTURE_URL || 'https://zahcrm.com/api/card/zah/capture';
+const HUBS = {
+  breed:       { name: 'BREED',         image: '/img/og-card.jpg' },
+  kingkonnect: { name: 'King Konnect',  image: '/img/og-card.jpg' },
+  jay:         { name: 'JayThaRealist', image: '/img/jaytharealist.jpg' },
+  yawitazah:   { name: 'Yawitazah',     image: '/img/yawitazah.jpg' },
+};
+
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js':   'text/javascript; charset=utf-8',
@@ -35,6 +47,62 @@ const server = createServer(async (req, res) => {
     if (pathname === '/healthz') {
       res.writeHead(200, { 'content-type': 'text/plain' });
       return res.end('ok');
+    }
+
+    // Fan capture from a hub → forward to Zah CRM, tagged per artist.
+    if (pathname === '/api/capture' && req.method === 'POST') {
+      let body = '';
+      for await (const chunk of req) { body += chunk; if (body.length > 10_000) break; }
+      let p = {};
+      try { p = JSON.parse(body); } catch {}
+      const artist = String(p.artist || '').slice(0, 80).trim();
+      const email  = String(p.email  || '').slice(0, 200).trim();
+      const name   = String(p.name   || '').slice(0, 120).trim();
+      if (!artist || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        return res.end('{"error":"artist and a valid email are required"}');
+      }
+      try {
+        const crm = await fetch(CRM_CAPTURE_URL, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name: name || email,
+            email,
+            group: `Remnant - ${artist}`,
+            source: 'remnant_hub',
+            notes: `Joined ${artist}'s list from the Remnant link hub.`,
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+        res.writeHead(crm.ok ? 200 : 502, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ ok: crm.ok }));
+      } catch {
+        res.writeHead(502, { 'content-type': 'application/json' });
+        return res.end('{"ok":false}');
+      }
+    }
+
+    // Hub pages share the SPA shell, but each gets its own share preview.
+    const hubMatch = pathname.match(/^\/a\/([\w-]+)\/?$/);
+    if (hubMatch) {
+      const hub = HUBS[hubMatch[1].toLowerCase()];
+      let html = await readFile(join(ROOT, 'index.html'), 'utf8');
+      if (hub) {
+        const title = `${hub.name} — Tha Remnant Music Group`;
+        const desc = `${hub.name}'s official links: music, videos and socials, all in one place.`;
+        html = html
+          .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+          .replace(/(property="og:title" content=")[^"]*/, `$1${title}`)
+          .replace(/(name="description" content=")[^"]*/, `$1${desc}`)
+          .replace(/(property="og:description" content=")[^"]*/, `$1${desc}`)
+          .replace(/(property="og:image" content=")[^"]*/,
+            `$1https://command-center-production-cc6b.up.railway.app${hub.image}`)
+          .replace(/(property="og:url" content=")[^"]*/,
+            `$1https://command-center-production-cc6b.up.railway.app/a/${hubMatch[1].toLowerCase()}`);
+      }
+      res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' });
+      return res.end(html);
     }
 
     if (pathname === '/config.js') {

@@ -107,6 +107,31 @@ export function render() {
       color: cvar('--critical'), note: 'Where the label is now' },
   ];
 
+  /* Label-wide digital reach: every artist's link hub rolled up. */
+  const hub = store.hub || {};
+  const names = Object.keys(hub);
+  const sum = k => names.reduce((s, n) => s + (hub[n][k] || 0), 0);
+  const hubRows = names
+    .map(n => ({ k: n, v: hub[n].clicks_28d || 0, note: `${fmt(hub[n].views_28d || 0)} hub views` }))
+    .sort((x, y) => y.v - x.v);
+  const best = hubRows[0];
+
+  const reach = card(`
+    <div class="spread">
+      <h3 style="margin:0">Digital reach — the link hubs</h3>
+      <span class="badge p-info">live · first-party</span>
+    </div>
+    <p class="muted sm" style="margin:.4em 0 0">Each artist has a public link hub at
+    /a/&lt;name&gt;. Every visit, button press and email signup is tracked here, in the label's
+    own database — nothing rented, nothing sampled.</p>
+    <div class="grid g4" style="margin-top:14px">
+      ${stat('Hub views · 28d', fmt(sum('views_28d')), `${fmt(sum('views_total'))} all time`)}
+      ${stat('Link clicks · 28d', fmt(sum('clicks_28d')), `${fmt(sum('clicks_total'))} all time`)}
+      ${stat('Fans captured', fmt(sum('captures_total')), 'email list, via Zah CRM', sum('captures_total') ? 'good' : '')}
+      ${stat('Most traction', best?.v ? esc(best.k) : '—', best?.v ? `${fmt(best.v)} clicks in 28d` : 'no clicks yet')}
+    </div>
+    ${hubRows.filter(r => r.v > 0).length ? `<div style="margin-top:16px">${hbar(hubRows.filter(r => r.v > 0), { aria: 'clicks per artist' })}</div>` : ''}`);
+
   return `
 ${banner({ id: 'wQwwd6zu62A', title: 'Executive brief', sub: 'The label, the verdict and the patterns worth betting on — written to be read cold.', badge: 'start here' })}
 ${card(`
@@ -129,6 +154,8 @@ ${card(`
     <tr><td>Paid budget</td><td>Under $500/month</td></tr>
     <tr><td>Distribution</td><td>DistroKid account live; album and singles queued</td></tr>
   </tbody></table>`)}
+
+${reach}
 
 ${card(`
   <h3>The verdict</h3>

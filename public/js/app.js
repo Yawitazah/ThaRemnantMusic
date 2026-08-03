@@ -1,7 +1,7 @@
-// App shell: routing and tab rendering. Read-only — data is maintained through Claude.
+// App shell: routing, tab rendering, hub-activity bell, team sign-in.
 
-import { store, loadAll, catalogStats } from './data.js';
-import { $, toast, hideTip } from './ui.js';
+import { store, loadAll, catalogStats, sb, initSession, signIn, signOut, isAdmin } from './data.js';
+import { $, toast, hideTip, esc } from './ui.js';
 
 import * as now       from './tabs/now.js';
 import * as artists   from './tabs/artists.js';
@@ -50,6 +50,92 @@ function draw() {
 
 /* ---------- boot ---------- */
 
+/* ---------- hub-activity bell ---------- */
+
+const LAST_SEEN_KEY = 'remnant-bell-seen';
+const agoShort = iso => {
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 90) return 'now';
+  if (s < 5400) return Math.round(s / 60) + 'm';
+  if (s < 129600) return Math.round(s / 3600) + 'h';
+  return Math.round(s / 86400) + 'd';
+};
+
+function renderBell() {
+  const feed = store.hubRecent || [];
+  const lastSeen = +(localStorage.getItem(LAST_SEEN_KEY) || 0);
+  const unseen = feed.filter(r => new Date(r.at).getTime() > lastSeen).length;
+  const count = $('#bell-count');
+  count.textContent = unseen > 9 ? '9+' : String(unseen);
+  count.hidden = unseen === 0;
+  $('#bell-list').innerHTML = feed.length ? feed.slice(0, 20).map(r => `
+    <li>
+      <span class="badge ${r.event === 'capture' ? 'p-good' : r.event === 'click' ? 'p-info' : 'p-mute'}">${esc(r.event)}</span>
+      <span><strong>${esc(r.artist)}</strong> · ${
+        r.event === 'view' ? 'hub opened' : r.event === 'capture' ? 'new fan on the list' : esc(r.label || 'link')}</span>
+      <span class="muted sm" style="margin-left:auto">${agoShort(r.at)}</span>
+    </li>`).join('')
+    : '<li class="muted sm" style="justify-content:center">No hub activity yet.</li>';
+}
+
+function initBell() {
+  const btn = $('#bell-btn'), panel = $('#bell-panel');
+  btn.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) renderBell();
+  });
+  $('#bell-clear').addEventListener('click', () => {
+    localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
+    renderBell();
+  });
+  document.addEventListener('click', e => {
+    if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) panel.hidden = true;
+  });
+  renderBell();
+}
+
+/* ---------- team sign-in (footer) ---------- */
+
+function renderAuth() {
+  const el = $('#foot-auth');
+  if (store.session) {
+    const who = store.session.user?.email || 'signed in';
+    el.innerHTML = `<span class="muted">${esc(who)}${isAdmin() ? ' · admin' : store.myArtist ? ' · ' + esc(store.myArtist) : ''}</span>
+      · <a href="#" id="auth-out">Sign out</a>`;
+  } else {
+    el.innerHTML = `<a href="#" id="auth-in">Team sign-in</a>`;
+  }
+}
+
+function initAuth() {
+  $('#foot-auth').addEventListener('click', async e => {
+    if (e.target.id === 'auth-in') {
+      e.preventDefault();
+      const email = prompt('Team email (you get a one-tap sign-in link):');
+      if (!email) return;
+      try {
+        await signIn(email.trim());
+        toast('Check your email for the sign-in link');
+      } catch (err) { toast(err.message, 'err'); }
+    }
+    if (e.target.id === 'auth-out') {
+      e.preventDefault();
+      await signOut();
+      renderAuth(); draw();
+      toast('Signed out');
+    }
+  });
+  sb.auth.onAuthStateChange(async (_ev, session) => {
+    const had = !!store.session;
+    store.session = session;
+    if (!!session !== had) {
+      await initSession();
+      renderAuth(); draw();
+    }
+  });
+  renderAuth();
+}
+
 async function boot() {
   const syncEl = $('#sync-state');
   try {
@@ -62,6 +148,8 @@ async function boot() {
       `${s.total} tracks · ${store.playbook.length} playbook items · ${store.opps.length} opportunities`;
 
     draw();
+    initBell();
+    initAuth();
   } catch (err) {
     syncEl.textContent = 'offline';
     syncEl.classList.add('err');
@@ -78,34 +166,50 @@ async function boot() {
 
 /* ---------- events ---------- */
 
-document.querySelector('.tabs').addEventListener('click', e => {
-  const t = e.target.closest('.tab');
-  if (!t || (t.dataset.t === currentTab && !currentArg)) return;
-  currentTab = t.dataset.t;
-  currentArg = null;
-  draw();
-});
+function initDashboard() {
+  document.querySelector('.tabs').addEventListener('click', e => {
+    const t = e.target.closest('.tab');
+    if (!t || (t.dataset.t === currentTab && !currentArg)) return;
+    currentTab = t.dataset.t;
+    currentArg = null;
+    draw();
+  });
 
-window.addEventListener('hashchange', () => {
-  const { tab, arg } = parseHash();
-  if (tab === currentTab && arg === currentArg) return;
-  currentTab = tab; currentArg = arg;
-  draw();
-});
+  window.addEventListener('hashchange', () => {
+    const { tab, arg } = parseHash();
+    if (tab === currentTab && arg === currentArg) return;
+    currentTab = tab; currentArg = arg;
+    draw();
+  });
 
-window.addEventListener('scroll', hideTip, { passive: true });
+  window.addEventListener('scroll', hideTip, { passive: true });
 
-// Theme
-const themeBtn = $('#theme-btn');
-const applyTheme = t => {
-  document.documentElement.dataset.theme = t;
-  themeBtn.textContent = t === 'light' ? 'Dark' : 'Light';
-  try { localStorage.setItem('remnant-theme', t); } catch {}
-};
-applyTheme((() => { try { return localStorage.getItem('remnant-theme') || 'dark'; } catch { return 'dark'; } })());
-themeBtn.addEventListener('click', () => {
-  applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
-  draw(); // charts read CSS variables at render time
-});
+  // Theme
+  const themeBtn = $('#theme-btn');
+  const applyTheme = t => {
+    document.documentElement.dataset.theme = t;
+    themeBtn.textContent = t === 'light' ? 'Dark' : 'Light';
+    try { localStorage.setItem('remnant-theme', t); } catch {}
+  };
+  applyTheme((() => { try { return localStorage.getItem('remnant-theme') || 'dark'; } catch { return 'dark'; } })());
+  themeBtn.addEventListener('click', () => {
+    applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+    draw(); // charts read CSS variables at render time
+  });
 
-boot();
+  boot();
+}
+
+/* Public artist hubs (/a/{slug}) share this bundle but none of the dashboard
+   chrome — they boot straight into the standalone hub page. */
+const hubSlug = location.pathname.match(/^\/a\/([\w-]+)\/?$/)?.[1];
+if (hubSlug) {
+  document.body.classList.add('hub-mode');
+  import('./hub.js')
+    .then(m => m.boot(hubSlug.toLowerCase()))
+    .catch(() => {
+      $('#view').innerHTML = '<div class="loading">Could not load this page.</div>';
+    });
+} else {
+  initDashboard();
+}
