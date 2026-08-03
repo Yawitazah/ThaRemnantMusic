@@ -57,12 +57,7 @@ a { color:var(--series-1); }
 img.mark { width:42px; height:42px; object-fit:contain; display:block; flex:none; }
 
 /* Full lock-up, centred above the landing hero. */
-.brand-lockup { text-align:center; padding:6px 0 22px; }
-.brand-lockup img { width:min(300px, 62vw); height:auto; margin:0 auto; display:block; }
-.brand-lockup p {
-  margin:12px auto 0; font-size:.78rem; letter-spacing:.22em; text-transform:uppercase;
-  color:var(--text-muted);
-}
+/* .brand-lockup retired — the logo now watermarks the hero (see .hero-watermark). */
 .topbar h1 { font-size:1rem; margin:0; }
 .sub { margin:0; font-size:.78rem; color:var(--text-muted); letter-spacing:.06em; text-transform:uppercase; }
 .topbar-actions { display:flex; align-items:center; gap:8px; }
@@ -265,11 +260,23 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
 }
 .hero-note strong { color:var(--warning); }
 
-.hero-body { position:relative; z-index:2; padding:34px 34px 30px; width:100%; color:#fff; }
+/* Logo watermarks: one bleeding off each edge, behind the copy. Sits above the
+   darkening gradient so it reads, but stays faint enough to be background. */
+.hero-watermark {
+  position:absolute; top:50%; z-index:2; pointer-events:none; user-select:none;
+  height:min(78%, 340px); width:auto; opacity:.13;
+  filter:grayscale(1) brightness(1.9) drop-shadow(0 0 26px rgba(0,0,0,.5));
+}
+.hero-watermark.left  { left:-6%;  transform:translateY(-50%) rotate(-6deg); }
+.hero-watermark.right { right:-6%; transform:translateY(-50%) rotate(6deg); }
+
+.hero-body { position:relative; z-index:3; padding:34px 34px 30px; width:100%; color:#fff; }
 .hero-eyebrow {
   font-size:.72rem; letter-spacing:.18em; text-transform:uppercase; font-weight:700;
   color:var(--series-2); margin-bottom:10px; display:flex; gap:10px; align-items:center;
+  flex-wrap:wrap;
 }
+.hero-eyebrow .dot { opacity:.5; }
 .hero h1 {
   font-size:clamp(2rem, 5vw, 3.4rem); line-height:1.02; margin:0 0 .25em;
   letter-spacing:-.035em; font-weight:800; text-shadow:0 2px 24px rgba(0,0,0,.6);
@@ -376,6 +383,10 @@ a.proj:hover h4 { color:var(--series-2); }
   .tabs { top:auto; position:static; }
   .view { padding:18px 14px 60px; }
   .card { padding:16px; }
+  /* One mark only on phones — two would crowd the copy. */
+  .hero-watermark { height:46%; opacity:.10; }
+  .hero-watermark.left { display:none; }
+  .hero-watermark.right { right:-14%; top:26%; }
 }
 @media print {
   .topbar-actions, .tabs, .foot { display:none; }

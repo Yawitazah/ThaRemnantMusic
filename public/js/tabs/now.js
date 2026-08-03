@@ -45,11 +45,6 @@ export function render() {
   const heroId = now?.hero_video_id || now?.art_video_id || '';
 
   return `
-<div class="brand-lockup">
-  <img src="img/logo-full.png" alt="Tha Remnant Music Group">
-  <p>Independent · Self-funded</p>
-</div>
-
 <section class="hero" data-hero-video="${esc(heroId)}">
   ${heroId
     ? `<img class="hero-bg" src="${art(heroId)}" alt="${esc(now.title)}"
@@ -57,9 +52,12 @@ export function render() {
        <div class="hero-video" id="hero-video"><div id="hero-player"></div></div>
        <div class="hero-note" id="hero-note" hidden></div>`
     : ''}
+  <img class="hero-watermark left"  src="img/logo-full.png" alt="" aria-hidden="true">
+  <img class="hero-watermark right" src="img/logo-full.png" alt="" aria-hidden="true">
   <div class="hero-body">
     <div class="hero-eyebrow">
       <span class="badge p-crit">pushing now</span> Tha Remnant Music Group
+      <span class="dot">·</span> Independent · Self-funded
     </div>
     <h1>${esc(now?.title || 'NO REMEDY')}</h1>
     <p class="sub-line">${esc(now?.blurb || '')}</p>
