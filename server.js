@@ -13,8 +13,10 @@ const PORT = process.env.PORT || 3000;
 /* Public artist link hubs live at /a/{slug}. Fan email capture posts here and
    is forwarded server-side to Zah CRM (the browser can't cross-origin POST).
    The slug map also personalises the share preview for each hub. */
+// "remnant" is the shared label account, auto-provisioned by the CRM's SSO
+// bridge — one pool of leads the whole team works together.
 const CRM_CAPTURE_URL =
-  process.env.CRM_CAPTURE_URL || 'https://zahcrm.com/api/card/zah/capture';
+  process.env.CRM_CAPTURE_URL || 'https://zahcrm.com/api/card/remnant/capture';
 // Captures also land in the label's own database so the whole team sees every
 // fan in the dashboard's Fans tab. The publishable key is public by design;
 // row-level security only allows inserts here.

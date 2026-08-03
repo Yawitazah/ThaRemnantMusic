@@ -81,6 +81,12 @@ export async function signInPassword(email, password) {
   return data;
 }
 
+/* One login for everything: the CRM trusts our Supabase session. The bridge
+   at zahcrm.com verifies the token and opens the shared label account. */
+export const crmSsoUrl = () => store.session?.access_token
+  ? `https://zahcrm.com/sso/remnant?token=${encodeURIComponent(store.session.access_token)}`
+  : 'https://zahcrm.com';
+
 export async function claimInvite(code) {
   const { data, error } = await sb.rpc('claim_invite', { invite_code: code });
   if (error) throw error;

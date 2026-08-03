@@ -4,7 +4,7 @@
 // up. Gated: the list only renders for signed-in team members (RLS enforces
 // it server-side; this tab just explains it to everyone else).
 
-import { store, sb } from '../data.js';
+import { store, sb, crmSsoUrl } from '../data.js';
 import { fmt, esc, stat, card } from '../ui.js';
 
 let rows = null;      // null = not loaded, [] = loaded empty
@@ -43,8 +43,10 @@ ${card(`
     ${stat('Total fans', rows === null ? '…' : fmt(rows.length), 'captured across all hubs')}
     ${stat('Last 7 days', rows === null ? '…' : fmt(last7), 'new signups', last7 ? 'good' : '')}
     ${stat('Artists represented', rows === null ? '…' : fmt(artists.length), 'with at least one fan')}
-    ${stat('Where to work them', 'CRM', 'zahcrm.com, label account')}
-  </div>`)}
+    ${stat('Where to work them', 'CRM', 'one click below, same login')}
+  </div>
+  <p style="margin:14px 0 0"><a class="btn sm" href="${esc(crmSsoUrl())}" target="_blank" rel="noopener">
+    Open the label CRM — signs you in automatically</a></p>`)}
 
 ${card(`
   <div class="row" style="margin-bottom:12px">

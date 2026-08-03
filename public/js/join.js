@@ -7,7 +7,7 @@
 //   3. Set up the phone: install the dashboard as an app, know where
 //      notifications live, open the CRM.
 
-import { store, initSession, signUpPassword, signInPassword, claimInvite, isAdmin, sb } from './data.js';
+import { store, initSession, signUpPassword, signInPassword, claimInvite, isAdmin, sb, crmSsoUrl } from './data.js';
 import { esc } from './ui.js';
 
 const view = () => document.getElementById('view');
@@ -49,7 +49,7 @@ function authStep(mode = 'signup', msg = '') {
       <button class="btn" type="submit">${mode === 'signup' ? 'Create my account' : 'Sign in'}</button>
     </form>
     <p class="muted sm" style="margin:12px 0 0">You set your own password — nobody else ever knows it.
-    ${mode === 'signup' ? 'You may need to confirm your email, then come straight back to this page.' : ''}</p>
+    ${mode === 'signup' ? 'After this you enter the <strong>invite code Zah gave you</strong> — have it ready.' : ''}</p>
   </section>`);
 
   view().querySelectorAll('.chip[data-mode]').forEach(c =>
@@ -140,13 +140,14 @@ function doneStep() {
         You can edit your own hub links there too.</span></li>
       <li><strong>Fans land in the Fans tab and the label CRM.</strong><br>
         <span class="muted sm">Every email captured on any hub shows up for the whole team, so
-        together you decide who follows up. The CRM app (zahcrm.com) sends its own notifications —
-        install it the same way and allow notifications when it asks.</span></li>
+        together you decide who follows up. The CRM button below signs you straight in with this
+        same account — no second password. Install the CRM as an app the same way, and allow
+        notifications when it asks.</span></li>
     </ol>
     <div class="hub-links" style="margin-top:16px">
       <a class="hub-btn" href="/#artists"><span class="hub-ic">DB</span><span>Open the dashboard</span><span class="hub-arrow">→</span></a>
       ${mySlug ? `<a class="hub-btn" href="/a/${esc(mySlug)}"><span class="hub-ic">HUB</span><span>See your public hub</span><span class="hub-arrow">→</span></a>` : ''}
-      <a class="hub-btn" href="https://zahcrm.com" target="_blank" rel="noopener"><span class="hub-ic">CRM</span><span>Open the label CRM</span><span class="hub-arrow">→</span></a>
+      <a class="hub-btn" href="${esc(crmSsoUrl())}" target="_blank" rel="noopener"><span class="hub-ic">CRM</span><span>Open the label CRM<small>signs you in automatically</small></span><span class="hub-arrow">→</span></a>
     </div>
   </section>`);
 }
