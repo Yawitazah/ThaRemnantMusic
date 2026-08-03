@@ -45,6 +45,11 @@ export function render() {
   const heroId = now?.hero_video_id || now?.art_video_id || '';
 
   return `
+<div class="brand-lockup">
+  <img src="img/logo-full.png" alt="Tha Remnant Music Group">
+  <p>Independent · Self-funded · Detroit</p>
+</div>
+
 <section class="hero" data-hero-video="${esc(heroId)}">
   ${heroId
     ? `<img class="hero-bg" src="${art(heroId)}" alt="${esc(now.title)}"
