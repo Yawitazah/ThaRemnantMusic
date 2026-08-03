@@ -47,7 +47,7 @@ export function render() {
   return `
 <div class="brand-lockup">
   <img src="img/logo-full.png" alt="Tha Remnant Music Group">
-  <p>Independent · Self-funded · Detroit</p>
+  <p>Independent · Self-funded</p>
 </div>
 
 <section class="hero" data-hero-video="${esc(heroId)}">
