@@ -22,6 +22,7 @@ export const store = {
   zahTracks: [],
   projects: [],
   profiles: [],
+  releases: [],
   settings: {},
   session: null,
 };
@@ -45,6 +46,7 @@ const TABLES = [
   ['zahTracks',       'zah_tracks',       'sort_order'],
   ['projects',        'projects',         'sort_order'],
   ['profiles',        'artist_profiles',  'sort_order'],
+  ['releases',        'releases',         'sort_order'],
 ];
 
 export async function loadAll() {
