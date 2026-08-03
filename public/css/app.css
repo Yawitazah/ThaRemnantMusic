@@ -261,11 +261,13 @@ svg { display:block; width:100%; height:auto; overflow:visible; }
 .hero-note strong { color:var(--warning); }
 
 /* Logo watermarks: one bleeding off each edge, behind the copy. Sits above the
-   darkening gradient so it reads, but stays faint enough to be background. */
+   darkening gradient so it reads, but stays faint enough to be background.
+   Keep the mark gold — greyscaling it flattened the logo into the dark photo
+   behind it and made the watermark effectively invisible. */
 .hero-watermark {
   position:absolute; top:50%; z-index:2; pointer-events:none; user-select:none;
-  height:min(78%, 340px); width:auto; opacity:.13;
-  filter:grayscale(1) brightness(1.9) drop-shadow(0 0 26px rgba(0,0,0,.5));
+  height:min(86%, 380px); width:auto; opacity:.34;
+  filter:brightness(1.12) saturate(1.1) drop-shadow(0 0 30px rgba(0,0,0,.55));
 }
 .hero-watermark.left  { left:-6%;  transform:translateY(-50%) rotate(-6deg); }
 .hero-watermark.right { right:-6%; transform:translateY(-50%) rotate(6deg); }
@@ -384,7 +386,7 @@ a.proj:hover h4 { color:var(--series-2); }
   .view { padding:18px 14px 60px; }
   .card { padding:16px; }
   /* One mark only on phones — two would crowd the copy. */
-  .hero-watermark { height:46%; opacity:.10; }
+  .hero-watermark { height:52%; opacity:.26; }
   .hero-watermark.left { display:none; }
   .hero-watermark.right { right:-14%; top:26%; }
 }
