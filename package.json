@@ -16,5 +16,8 @@
   "devDependencies": {
     "esbuild": "^0.23.1",
     "jsdom": "^25.0.1"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
   }
 }

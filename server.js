@@ -6,6 +6,7 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import webpush from 'web-push';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), 'public');
 const PORT = process.env.PORT || 3000;
@@ -22,6 +23,75 @@ const CRM_CAPTURE_URL =
 // row-level security only allows inserts here.
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://upfqppdfckqehzgsosdi.supabase.co';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'sb_publishable_c0j0FTpd3X-joAr673KR4A_NmMGSP7u';
+
+/* ---------- web push ----------
+   The public VAPID key is served to the browser; the private one signs. Both
+   default to the pair generated for this project so push works out of the box
+   and can still be rotated through the environment. The fanout worker polls
+   push_claim() with a shared secret instead of carrying a service-role key. */
+const VAPID_PUBLIC = process.env.VAPID_PUBLIC
+  || 'BF80eyZ4VEYnW3WKH3iKpX97bBr_RvpAflvpgYPCrmb4QG4NIh_unEjM1sIKu0mgw3zUCn4aQgSoJ7KULyJjcRM';
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE || 'OY-TtZyjAp-ZOQbYKfcjksNdiiONfANiQKi2Z9ISgNs';
+const PUSH_SECRET = process.env.PUSH_SECRET || 'VYawfzWCaOefTTgsx4PJmt_7yJpmoxsW';
+webpush.setVapidDetails(
+  process.env.VAPID_SUBJECT || 'mailto:zahbrandsolutions@gmail.com',
+  VAPID_PUBLIC, VAPID_PRIVATE,
+);
+
+const rpc = (fn, body) => fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+  method: 'POST',
+  headers: {
+    apikey: SUPABASE_ANON_KEY,
+    authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    'content-type': 'application/json',
+  },
+  body: JSON.stringify(body),
+  signal: AbortSignal.timeout(10000),
+});
+
+/* Poll for fans who signed up since the last round and push one notification
+   each. Captures are marked inside push_claim, so a crash mid-round can drop a
+   notification but can never send the same one twice. */
+async function pushRound() {
+  const res = await rpc('push_claim', { p_secret: PUSH_SECRET });
+  if (!res.ok) throw new Error(`push_claim HTTP ${res.status}`);
+  const { captures = [], subs = [] } = await res.json();
+  if (!captures.length || !subs.length) return;
+
+  let ok = 0, failed = 0, dropped = 0;
+  for (const c of captures) {
+    const payload = JSON.stringify({
+      title: `New fan for ${c.artist}`,
+      body: `${c.name || c.email} just joined the list.`,
+      url: '/#fans',
+      tag: 'fan-' + c.email,
+    });
+    await Promise.all(subs.map(async s => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          payload,
+        );
+        ok++;
+      } catch (err) {
+        failed++;
+        // 404/410 are the standard "this subscription is gone" codes (app
+        // uninstalled, permission revoked). Anything else may be transient, so
+        // the device keeps its subscription and we try again next time.
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          dropped++;
+          await rpc('push_drop', { p_secret: PUSH_SECRET, p_endpoint: s.endpoint }).catch(() => {});
+        } else {
+          console.warn(`[push] ${s.endpoint.slice(0, 48)}… failed: ${err.statusCode || err.message}`);
+        }
+      }
+    }));
+  }
+  console.log(`[push] ${captures.length} fan(s) × ${subs.length} device(s): `
+    + `${ok} delivered, ${failed} failed, ${dropped} stale removed`);
+}
+
+setInterval(() => { pushRound().catch(e => console.error('[push]', e.message)); }, 60_000);
 const HUBS = {
   breed:       { name: 'BREED',         image: '/img/og-card.jpg' },
   kingkonnect: { name: 'King Konnect',  image: '/img/og-card.jpg' },
@@ -55,6 +125,34 @@ const server = createServer(async (req, res) => {
     if (pathname === '/healthz') {
       res.writeHead(200, { 'content-type': 'text/plain' });
       return res.end('ok');
+    }
+
+    // The browser needs the public VAPID key to create a push subscription.
+    if (pathname === '/api/push/key') {
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-cache' });
+      return res.end(JSON.stringify({ key: VAPID_PUBLIC }));
+    }
+
+    // Send a test notification to the devices already subscribed, so a person
+    // can confirm notifications work the moment they turn them on.
+    if (pathname === '/api/push/test' && req.method === 'POST') {
+      const r = await rpc('push_claim', { p_secret: PUSH_SECRET });
+      const { subs = [] } = r.ok ? await r.json() : {};
+      const payload = JSON.stringify({
+        title: 'Notifications are on',
+        body: 'This is what a new fan will look like.',
+        url: '/#fans', tag: 'push-test',
+      });
+      let sent = 0;
+      await Promise.all(subs.map(async s => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload);
+          sent++;
+        } catch { /* dead endpoint, cleaned up on the next real round */ }
+      }));
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ sent }));
     }
 
     // Fan capture from a hub → forward to Zah CRM, tagged per artist.

@@ -6,6 +6,7 @@
 
 import { store, sb, crmSsoUrl } from '../data.js';
 import { fmt, esc, stat, card } from '../ui.js';
+import { setupButtonsHtml, wireSetupButtons, isStandalone } from '../install.js';
 
 let rows = null;      // null = not loaded, [] = loaded empty
 let artistFilter = 'all';
@@ -49,6 +50,12 @@ ${card(`
     Open the label CRM — signs you in automatically</a></p>`)}
 
 ${card(`
+  <h3>Get these on your phone</h3>
+  <p class="muted sm" style="margin:.3em 0 0">Install the dashboard as an app and get a notification
+  the moment a fan joins any hub — no need to keep checking.</p>
+  <div id="fans-setup" style="margin-top:14px">${setupButtonsHtml()}</div>`, 'setup-card')}
+
+${card(`
   <div class="row" style="margin-bottom:12px">
     <button class="chip ${artistFilter === 'all' ? 'on' : ''}" data-fan-artist="all">All</button>
     ${artists.map(a => `<button class="chip ${artistFilter === a ? 'on' : ''}" data-fan-artist="${esc(a)}">${esc(a)}</button>`).join('')}
@@ -68,6 +75,9 @@ ${card(`
 }
 
 export function bind(mount, rerender) {
+  const setup = mount.querySelector('#fans-setup');
+  if (setup) wireSetupButtons(setup);
+
   if (store.isTeam && rows === null) {
     sb.from('hub_captures').select('*').order('created_at', { ascending: false }).limit(500)
       .then(({ data }) => { rows = data || []; rerender(); });

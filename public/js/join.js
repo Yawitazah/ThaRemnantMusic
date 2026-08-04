@@ -9,6 +9,7 @@
 
 import { store, initSession, signUpPassword, signInPassword, claimInvite, isAdmin, sb, crmSsoUrl } from './data.js';
 import { esc } from './ui.js';
+import { setupButtonsHtml, wireSetupButtons } from './install.js';
 
 const view = () => document.getElementById('view');
 
@@ -118,38 +119,21 @@ function doneStep() {
   const who = store.myArtist || (isAdmin() ? 'Label admin' : 'Team member');
   const slugMap = Object.fromEntries((store.profiles || []).map(p => [p.artist, p.slug]));
   const mySlug = slugMap[store.myArtist];
-  const ua = navigator.userAgent;
-  const install = /iphone|ipad/i.test(ua)
-    ? 'Open this site in Safari, tap the <strong>Share</strong> button, then <strong>Add to Home Screen</strong>.'
-    : /android/i.test(ua)
-      ? 'Tap the <strong>⋮ menu</strong> in Chrome, then <strong>Add to Home screen</strong> (or "Install app").'
-      : 'In Chrome or Edge, click the <strong>install icon</strong> at the right end of the address bar.';
 
   view().innerHTML = shell(`
   ${stepBadge(3)}
   <section class="hub-capture" style="text-align:left">
     <h2 style="text-align:center">You're in, ${esc(who)}</h2>
-    <ol class="join-list">
-      <li><strong>Install the dashboard as an app.</strong><br>
-        <span class="muted sm">${install}</span></li>
-      <li><strong>Watch the bell.</strong><br>
-        <span class="muted sm">The bell at the top of the dashboard shows every hub visit, link tap
-        and new fan as it comes in. It refreshes itself while the app is open.</span></li>
-      <li><strong>Your numbers live on the Artists tab.</strong><br>
-        <span class="muted sm">Views, clicks and fans for your hub — 7 days, 28 days or all time.
-        You can edit your own hub links there too.</span></li>
-      <li><strong>Fans land in the Fans tab and the label CRM.</strong><br>
-        <span class="muted sm">Every email captured on any hub shows up for the whole team, so
-        together you decide who follows up. The CRM button below signs you straight in with this
-        same account — no second password. Install the CRM as an app the same way, and allow
-        notifications when it asks.</span></li>
-    </ol>
-    <div class="hub-links" style="margin-top:16px">
-      <a class="hub-btn" href="/#artists"><span class="hub-ic">DB</span><span>Open the dashboard</span><span class="hub-arrow">→</span></a>
-      ${mySlug ? `<a class="hub-btn" href="/a/${esc(mySlug)}"><span class="hub-ic">HUB</span><span>See your public hub</span><span class="hub-arrow">→</span></a>` : ''}
+    <p class="muted sm" style="text-align:center;margin:0 0 4px">Two taps and you are set up.</p>
+    ${setupButtonsHtml()}
+    <div class="hub-links" style="margin-top:18px">
+      <a class="hub-btn" href="/#artists"><span class="hub-ic">DB</span><span>Open the dashboard<small>your stats and everyone else's</small></span><span class="hub-arrow">→</span></a>
+      ${mySlug ? `<a class="hub-btn" href="/a/${esc(mySlug)}"><span class="hub-ic">HUB</span><span>See your public hub<small>the link you share</small></span><span class="hub-arrow">→</span></a>` : ''}
       <a class="hub-btn" href="${esc(crmSsoUrl())}" target="_blank" rel="noopener"><span class="hub-ic">CRM</span><span>Open the label CRM<small>signs you in automatically</small></span><span class="hub-arrow">→</span></a>
     </div>
   </section>`);
+
+  wireSetupButtons(view());
 }
 
 /* ---------- router ---------- */

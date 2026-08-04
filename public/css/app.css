@@ -510,6 +510,29 @@ body.hub-mode .view { max-width:none; padding:0; }
 }
 .hub-foot img { width:26px; height:26px; object-fit:contain; opacity:.85; }
 
+/* ---------- install + notification buttons ---------- */
+.setup-grid { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+.setup-row {
+  display:flex; align-items:center; gap:13px; width:100%; text-align:left;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:11px;
+  padding:14px 16px; color:var(--text-primary); font:inherit; font-size:.94rem;
+  font-weight:600; cursor:pointer; transition:border-color .14s, transform .14s;
+}
+.setup-row:hover:not(:disabled) { border-color:var(--series-2); transform:translateY(-1px); }
+.setup-row:disabled { cursor:default; opacity:.72; }
+.setup-row small {
+  display:block; font-weight:400; font-size:.78rem; color:var(--text-muted); margin-top:2px;
+}
+.setup-ic {
+  flex:none; width:30px; height:30px; display:grid; place-items:center; border-radius:50%;
+  background:var(--surface-1); border:1px solid var(--line);
+  font-size:.8rem; font-weight:750; color:var(--series-2);
+}
+.setup-row.done { border-color:color-mix(in srgb, var(--good) 45%, var(--line)); }
+.setup-row.done .setup-ic { color:var(--good); border-color:color-mix(in srgb, var(--good) 45%, var(--line)); }
+.setup-go { margin-left:auto; color:var(--text-muted); }
+.setup-row.done .setup-go { display:none; }
+
 /* ---------- /join onboarding ---------- */
 .join-steps { display:flex; justify-content:center; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
 .join-step {
