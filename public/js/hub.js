@@ -28,9 +28,13 @@ const isBot = () =>
   /bot|crawl|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord|twitter|linkedin|skype|pinterest|embed|headless|lighthouse|vercel|prerender/i
     .test(navigator.userAgent);
 
+/* One visitor id shared with the profile page (profile.js reads the same key),
+   kept in localStorage so a follow survives closing the tab. */
 const sid = () => {
-  let s = sessionStorage.getItem('hub-sid');
-  if (!s) { s = Math.random().toString(36).slice(2, 12); sessionStorage.setItem('hub-sid', s); }
+  let s = null;
+  try { s = localStorage.getItem('hub-sid') || sessionStorage.getItem('hub-sid'); } catch {}
+  if (!s) s = Math.random().toString(36).slice(2, 12);
+  try { localStorage.setItem('hub-sid', s); } catch {}
   return s;
 };
 
@@ -117,6 +121,11 @@ export async function boot(slug) {
   </header>
 
   <nav class="hub-links">
+    <a class="hub-btn hub-btn-primary" href="/artist/${esc(slug)}">
+      <span class="hub-ic">★</span>
+      <span>Artist profile<small>Popular tracks, releases, tour dates</small></span>
+      <span class="hub-arrow">→</span>
+    </a>
     ${links.map(l => `
       <a class="hub-btn" href="${esc(l.url)}" target="_blank" rel="noopener" data-link-id="${l.id}">
         <span class="hub-ic">${esc(iconFor(l.label))}</span>
@@ -124,6 +133,13 @@ export async function boot(slug) {
         <span class="hub-arrow">→</span>
       </a>`).join('')}
   </nav>
+
+  ${releases.length ? `
+  <section class="hub-disco">
+    <h2>Music</h2>
+    ${own.length ? `<ul>${own.map(releaseRow).join('')}</ul>` : ''}
+    ${feats.length ? `<h3>Featured on</h3><ul>${feats.map(releaseRow).join('')}</ul>` : ''}
+  </section>` : ''}
 
   <section class="hub-capture" id="hub-capture">
     <h2>Stay in the loop</h2>
@@ -135,13 +151,6 @@ export async function boot(slug) {
     </form>
     <p class="hub-capture-done" hidden>You're on the list. Welcome in.</p>
   </section>
-
-  ${releases.length ? `
-  <section class="hub-disco">
-    <h2>Music</h2>
-    ${own.length ? `<ul>${own.map(releaseRow).join('')}</ul>` : ''}
-    ${feats.length ? `<h3>Featured on</h3><ul>${feats.map(releaseRow).join('')}</ul>` : ''}
-  </section>` : ''}
 
   <footer class="hub-foot">
     <img src="/img/logo-mark-180.png" alt="">

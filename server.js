@@ -198,14 +198,17 @@ const server = createServer(async (req, res) => {
       return res.end(JSON.stringify({ ok }));
     }
 
-    // Hub pages share the SPA shell, but each gets its own share preview.
-    const hubMatch = pathname.match(/^\/a\/([\w-]+)\/?$/);
+    // Hub and profile pages share the SPA shell, each with its own preview.
+    const hubMatch = pathname.match(/^\/(a|artist)\/([\w-]+)\/?$/);
     if (hubMatch) {
-      const hub = HUBS[hubMatch[1].toLowerCase()];
+      const isProfile = hubMatch[1] === 'artist';
+      const hub = HUBS[hubMatch[2].toLowerCase()];
       let html = await readFile(join(ROOT, 'index.html'), 'utf8');
       if (hub) {
         const title = `${hub.name} — Tha Remnant Music Group`;
-        const desc = `${hub.name}'s official links: music, videos and socials, all in one place.`;
+        const desc = isProfile
+          ? `${hub.name} on Tha Remnant Music Group: popular tracks, releases, tour dates and more.`
+          : `${hub.name}'s official links: music, videos and socials, all in one place.`;
         html = html
           .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
           .replace(/(property="og:title" content=")[^"]*/, `$1${title}`)
@@ -214,7 +217,7 @@ const server = createServer(async (req, res) => {
           .replace(/(property="og:image" content=")[^"]*/,
             `$1https://command-center-production-cc6b.up.railway.app${hub.image}`)
           .replace(/(property="og:url" content=")[^"]*/,
-            `$1https://command-center-production-cc6b.up.railway.app/a/${hubMatch[1].toLowerCase()}`);
+            `$1https://command-center-production-cc6b.up.railway.app/${hubMatch[1]}/${hubMatch[2].toLowerCase()}`);
       }
       res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' });
       return res.end(html);

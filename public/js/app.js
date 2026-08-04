@@ -256,12 +256,15 @@ if ('serviceWorker' in navigator) {
 /* Public artist hubs (/a/{slug}) and team onboarding (/join) share this bundle
    but none of the dashboard chrome — they boot straight into standalone pages. */
 const hubSlug = location.pathname.match(/^\/a\/([\w-]+)\/?$/)?.[1];
+const profileSlug = location.pathname.match(/^\/artist\/([\w-]+)\/?$/)?.[1];
 const isJoin = /^\/join\/?$/.test(location.pathname);
-if (hubSlug || isJoin) {
+if (hubSlug || profileSlug || isJoin) {
   document.body.classList.add('hub-mode');
   const load = isJoin
     ? import('./join.js').then(m => m.boot())
-    : import('./hub.js').then(m => m.boot(hubSlug.toLowerCase()));
+    : profileSlug
+      ? import('./profile.js').then(m => m.boot(profileSlug.toLowerCase()))
+      : import('./hub.js').then(m => m.boot(hubSlug.toLowerCase()));
   load.catch(() => {
     $('#view').innerHTML = '<div class="loading">Could not load this page.</div>';
   });
