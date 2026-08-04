@@ -92,6 +92,8 @@ async function pushRound() {
 }
 
 setInterval(() => { pushRound().catch(e => console.error('[push]', e.message)); }, 60_000);
+const SITE = process.env.SITE_URL || 'https://command-center-production-cc6b.up.railway.app';
+
 const HUBS = {
   breed:       { name: 'BREED',         image: '/img/og-card.jpg' },
   kingkonnect: { name: 'King Konnect',  image: '/img/og-card.jpg' },
@@ -198,6 +200,23 @@ const server = createServer(async (req, res) => {
       return res.end(JSON.stringify({ ok }));
     }
 
+    // The public label page. Same shell, its own share preview, no dashboard.
+    if (/^\/label\/?$/.test(pathname)) {
+      const title = 'Tha Remnant Music Group';
+      const desc = 'Four artists, one catalogue. New records, videos and shows from '
+        + 'Tha Remnant Music Group.';
+      let html = await readFile(join(ROOT, 'index.html'), 'utf8');
+      html = html
+        .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+        .replace(/(property="og:title" content=")[^"]*/, `$1${title}`)
+        .replace(/(name="description" content=")[^"]*/, `$1${desc}`)
+        .replace(/(property="og:description" content=")[^"]*/, `$1${desc}`)
+        .replace(/(property="og:image" content=")[^"]*/, `$1${SITE}/img/og-card.jpg`)
+        .replace(/(property="og:url" content=")[^"]*/, `$1${SITE}/label`);
+      res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' });
+      return res.end(html);
+    }
+
     // Hub and profile pages share the SPA shell, each with its own preview.
     const hubMatch = pathname.match(/^\/(a|artist)\/([\w-]+)\/?$/);
     if (hubMatch) {
@@ -214,10 +233,9 @@ const server = createServer(async (req, res) => {
           .replace(/(property="og:title" content=")[^"]*/, `$1${title}`)
           .replace(/(name="description" content=")[^"]*/, `$1${desc}`)
           .replace(/(property="og:description" content=")[^"]*/, `$1${desc}`)
-          .replace(/(property="og:image" content=")[^"]*/,
-            `$1https://command-center-production-cc6b.up.railway.app${hub.image}`)
+          .replace(/(property="og:image" content=")[^"]*/, `$1${SITE}${hub.image}`)
           .replace(/(property="og:url" content=")[^"]*/,
-            `$1https://command-center-production-cc6b.up.railway.app/${hubMatch[1]}/${hubMatch[2].toLowerCase()}`);
+            `$1${SITE}/${hubMatch[1]}/${hubMatch[2].toLowerCase()}`);
       }
       res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' });
       return res.end(html);

@@ -424,12 +424,70 @@ a.proj:hover h4 { color:var(--series-2); }
   box-shadow:0 14px 44px rgba(0,0,0,.45); overflow:hidden;
 }
 .bell-panel ul { list-style:none; margin:0; padding:4px 0 6px; max-height:340px; overflow:auto; }
+
+/* ---------- account and page navigation ---------- */
+.nav-quick { white-space:nowrap; }
+.nav-quick[hidden] { display:none; }
+.acct { display:flex; align-items:center; gap:6px; padding-left:6px; padding-right:8px; }
+.acct-avatar {
+  width:24px; height:24px; border-radius:50%; display:grid; place-items:center;
+  background:var(--surface-2); color:var(--text-muted); font-size:.74rem; font-weight:750;
+}
+.acct.signed-in .acct-avatar { background:var(--series-2); color:#fff; }
+.acct-panel {
+  position:fixed; top:62px; right:14px; z-index:80; width:min(320px, calc(100vw - 20px));
+  background:var(--surface-1); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:0 14px 44px rgba(0,0,0,.45); overflow:hidden; padding-bottom:4px;
+}
+.acct-panel[hidden] { display:none; }
+.acct-head { padding:13px 15px 11px; border-bottom:1px solid var(--line); }
+.acct-head strong { display:block; font-size:.92rem; }
+.acct-head span { display:block; font-size:.76rem; }
+.acct-group { padding:7px 0; }
+.acct-group + .acct-group { border-top:1px solid var(--line); }
+.acct-label {
+  display:block; padding:3px 15px 6px; font-size:.66rem; letter-spacing:.11em;
+  text-transform:uppercase; font-weight:700; color:var(--text-muted);
+}
+.acct-item {
+  display:flex; align-items:flex-start; gap:10px; padding:8px 15px;
+  text-decoration:none; color:var(--text-primary); font-size:.87rem; font-weight:550;
+}
+.acct-item:hover { background:var(--surface-2); }
+.acct-item small { display:block; font-weight:400; font-size:.74rem; color:var(--text-muted); margin-top:1px; }
+.acct-item.is-here { color:var(--text-muted); pointer-events:none; }
+.acct-ic { flex:none; width:18px; text-align:center; color:var(--series-2); font-size:.8rem; line-height:1.5; }
+.acct-artist { padding:6px 15px 9px; }
+.acct-artist-name { display:block; font-size:.85rem; font-weight:600; margin-bottom:3px; }
+.acct-artist-links { display:flex; gap:7px; flex-wrap:wrap; }
+.acct-artist-links a {
+  font-size:.72rem; font-weight:650; text-decoration:none; color:var(--text-secondary);
+  border:1px solid var(--line); border-radius:99px; padding:3px 10px;
+}
+.acct-artist-links a:hover { color:var(--series-2); border-color:var(--series-2); }
+@media (max-width:720px) { .nav-quick { display:none; } }
 .bell-panel li, .hub-feed li {
   display:flex; align-items:center; gap:9px; padding:7px 14px; font-size:.83rem;
 }
 .bell-panel li + li, .hub-feed li + li { border-top:1px solid var(--line); }
 .hub-feed { list-style:none; margin:0; padding:0; }
-.hub-feed li { padding:8px 2px; }
+.hub-feed li { padding:8px 2px; align-items:flex-start; }
+.hub-feed li .badge { flex:0 0 auto; margin-top:1px; min-width:58px; text-align:center; }
+.hub-feed-what { flex:1 1 auto; line-height:1.45; }
+.hub-feed-when { flex:0 0 auto; margin-left:auto; white-space:nowrap; }
+
+/* Growth deltas: a window compared with the window before it. */
+.delta {
+  display:inline-block; font-weight:700; font-size:.72rem; letter-spacing:.01em;
+  padding:1px 6px; border-radius:99px; margin-right:6px; vertical-align:baseline;
+}
+.delta.up   { background:color-mix(in srgb, var(--good) 18%, transparent);     color:var(--good); }
+.delta.down { background:color-mix(in srgb, var(--critical) 18%, transparent); color:var(--critical); }
+.delta.flat { background:var(--surface-2); color:var(--text-muted); }
+
+/* Per-release counts. */
+table.hub-items th.r, table.hub-items td.r { text-align:right; }
+table.hub-items td strong { font-weight:600; }
 .hub-edit-row {
   display:flex; gap:7px; align-items:center; margin-bottom:7px;
 }
@@ -549,7 +607,19 @@ body.hub-mode .view { max-width:none; padding:0; }
   padding:11px 2px; border-bottom:1px solid var(--line); font-size:.9rem;
 }
 .hub-release .muted { display:block; }
-.hub-dsps { display:flex; gap:7px; flex:none; }
+/* Artwork on the hub is a small square rather than the profile page's grid tile. */
+.hub-release .pf-rel-art {
+  width:56px; height:56px; flex:none; border-radius:6px; margin:0;
+}
+.hub-release .pf-rel-art .pf-src-tag { display:none; }
+.hub-release .pf-rel-play span { width:30px; height:30px; font-size:.72rem; }
+.hub-release-t { flex:1; min-width:0; }
+.hub-dsps { display:flex; gap:7px; flex:none; flex-wrap:wrap; justify-content:flex-end; }
+@media (max-width:520px) {
+  .hub-release { flex-wrap:wrap; }
+  .hub-release-t { flex:1 1 auto; }
+  .hub-dsps { flex:1 0 100%; justify-content:flex-start; }
+}
 .hub-dsp {
   font-size:.74rem; font-weight:650; text-decoration:none; color:var(--text-secondary);
   border:1px solid var(--line); border-radius:99px; padding:4px 11px;
@@ -588,13 +658,16 @@ body.hub-mode .view { max-width:none; padding:0; }
 
 /* ---------- public artist profile (/artist/{slug}) ---------- */
 .profile { max-width:960px; margin:0 auto; padding:0 0 60px; }
+/* Portraits are square (900x900). A short banner crops that hard and cuts the
+   top of the head off, so the header is tall enough for the frame to sit close
+   to the source aspect and the face to land in the middle of it. */
 .pf-head {
-  position:relative; min-height:340px; display:flex; align-items:flex-end;
+  position:relative; min-height:clamp(400px, 56vw, 580px); display:flex; align-items:flex-end;
   padding:28px 26px; overflow:hidden; isolation:isolate;
 }
 .pf-cover {
   position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-  object-position:center 28%; z-index:-2; filter:saturate(1.05);
+  object-position:center 12%; z-index:-2; filter:saturate(1.05);
 }
 .pf-head::after {
   content:''; position:absolute; inset:0; z-index:-1;
@@ -751,12 +824,52 @@ body.has-dock { padding-bottom:96px; }
 .pf-dock-meta strong { display:block; font-size:.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pf-dock-meta small { color:var(--text-muted); font-size:.78rem; }
 .pf-dock-actions { display:flex; gap:6px; flex:none; }
+
+/* Spotify and Apple ship their own artwork, title and transport inside the
+   embed, so those sources take the full width and our own meta strip steps
+   aside rather than repeating it. */
+.pf-dock-embed { flex:1; min-width:0; }
+.pf-dock-embed iframe { width:100%; border:0; display:block; border-radius:10px; }
+.pf-dock[data-src="youtube"] .pf-dock-embed { display:none; }
+.pf-dock[data-src="spotify"] .pf-dock-video,
+.pf-dock[data-src="spotify"] .pf-dock-meta,
+.pf-dock[data-src="apple"]   .pf-dock-video,
+.pf-dock[data-src="apple"]   .pf-dock-meta { display:none; }
+.pf-dock[data-src="spotify"] .pf-dock-embed iframe { height:80px; }
+.pf-dock[data-src="apple"]   .pf-dock-embed iframe { height:110px; }
+body.has-dock-spotify { padding-bottom:112px; }
+body.has-dock-apple   { padding-bottom:142px; }
+
+/* The thumbnail is the play control now, so it has to look like one. */
+.pf-rel-art { position:relative; }
+.pf-rel-play {
+  position:absolute; inset:0; display:grid; place-items:center; border:0; padding:0;
+  background:linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,.05));
+  color:#fff; cursor:pointer; opacity:0; transition:opacity .16s;
+}
+.pf-rel-play span {
+  width:44px; height:44px; border-radius:50%; display:grid; place-items:center;
+  background:var(--series-2); color:#fff; font-size:1rem; padding-left:3px;
+  box-shadow:0 6px 20px rgba(0,0,0,.45);
+}
+/* Hover the artwork itself, so this works on the profile grid, the artist pick
+   and the hub rows without a rule per container. */
+.pf-rel-art:hover .pf-rel-play, .pf-rel-play:focus-visible { opacity:1; }
+@media (hover:none) { .pf-rel-play { opacity:1; background:none; }
+  .pf-rel-play span { width:34px; height:34px; font-size:.8rem; opacity:.92; } }
+.pf-rel-art .pf-src-tag {
+  position:absolute; left:6px; bottom:6px; z-index:2; font-size:.6rem; font-weight:750;
+  letter-spacing:.06em; text-transform:uppercase; padding:2px 6px; border-radius:4px;
+  background:rgba(0,0,0,.62); color:#fff;
+}
 .pf-dock-btn {
   width:34px; height:34px; display:grid; place-items:center; border-radius:8px;
   border:1px solid var(--line); background:var(--surface-2); color:var(--text-secondary);
   font-size:.9rem; cursor:pointer; text-decoration:none;
 }
 .pf-dock-btn:hover { color:var(--series-2); border-color:var(--series-2); }
+/* display:grid above outranks [hidden], same trap the lightbox fell into. */
+.pf-dock-btn[hidden] { display:none; }
 
 /* ---------- lightbox ---------- */
 .pf-lightbox {

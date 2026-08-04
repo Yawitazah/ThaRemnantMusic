@@ -9,6 +9,8 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
 import { socialRow, socialIcon, iconFor, isMusicLink, rollAll } from './icons.js';
+import { SRC_NAME, playableArt, hydrateArt, dockMarkup, initDock } from './dock.js';
+import { mountTeamBar } from './teambar.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -42,7 +44,7 @@ const sid = () => {
 function track(artist, event, extra = {}) {
   if (isBot()) return;
   const row = {
-    artist, event, session_id: sid(),
+    artist, event, session_id: sid(), page: 'hub',
     referrer: (document.referrer || '').slice(0, 300) || null,
     ua: navigator.userAgent.slice(0, 300),
     ...extra,
@@ -87,11 +89,13 @@ export async function boot(slug) {
 
   const dsp = (r, platform, url) => url
     ? `<a class="hub-dsp" href="${esc(url)}" target="_blank" rel="noopener"
-         data-label="${esc(`${r.title} · ${platform}`)}">${platform}</a>` : '';
+         data-item="${esc(r.title)}" data-label="${esc(`${r.title} · ${platform}`)}">${platform}</a>` : '';
 
+  /* Artwork plays in the dock, the platform buttons leave for the platform. */
   const releaseRow = r => `
     <li class="hub-release">
-      <div>
+      ${playableArt(r)}
+      <div class="hub-release-t">
         <strong>${esc(r.title)}</strong>
         <span class="muted sm">${esc(r.kind || '')}${r.year ? ' · ' + r.year : ''}${
           r.credited_to ? ' · ' + esc(r.credited_to) : ''}</span>
@@ -156,7 +160,8 @@ export async function boot(slug) {
     <a class="powered" href="https://zahbrandsolutions.com" target="_blank" rel="noopener"
        data-label="Powered by Zah Brand Solutions">Powered by Zah Brand Solutions</a>
   </footer>
-</div>`;
+</div>
+${dockMarkup()}`;
 
   /* One view per session per artist — views read as people, not refreshes. */
   rollAll(view);
@@ -167,11 +172,26 @@ export async function boot(slug) {
     track(a, 'view');
   }
 
+  hydrateArt(view);
+  mountTeamBar({ artist: a, slug, here: 'hub' });
+
+  const { play } = initDock();
+
   view.addEventListener('click', e => {
+    const playBtn = e.target.closest('[data-src][data-ref]');
+    if (playBtn) {
+      const { src, ref, title, credit, item } = playBtn.dataset;
+      const opened = play(src, ref, title, credit);
+      track(a, opened ? 'play' : 'click', {
+        item: item || title || null,
+        label: `${title || item} · ${SRC_NAME[src] || src}`,
+      });
+      return;
+    }
     const btn = e.target.closest('.hub-btn');
     if (btn) { track(a, 'click', { link_id: +btn.dataset.linkId }); return; }
     const dspBtn = e.target.closest('.hub-dsp');
-    if (dspBtn) track(a, 'click', { label: dspBtn.dataset.label });
+    if (dspBtn) track(a, 'click', { label: dspBtn.dataset.label, item: dspBtn.dataset.item || null });
   });
 
   const form = document.getElementById('capture-form');

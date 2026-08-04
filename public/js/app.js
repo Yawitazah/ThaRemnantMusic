@@ -1,6 +1,6 @@
 // App shell: routing, tab rendering, hub-activity bell, team sign-in.
 
-import { store, loadAll, catalogStats, sb, initSession, signOut, isAdmin } from './data.js';
+import { store, loadAll, catalogStats, sb, initSession, signOut, isAdmin, crmSsoUrl } from './data.js';
 import { $, toast, hideTip, esc } from './ui.js';
 
 import * as now       from './tabs/now.js';
@@ -111,6 +111,128 @@ function initBell() {
   }, 60_000);
 }
 
+/* ---------- account menu ----------
+   Signing in used to be a dead end: there was a way in and a way out, and no
+   way to move between the Command Center, an artist's own hub, their public
+   page and the CRM. This is that menu. The Command Center and the CRM are
+   team-only, so a fan who somehow lands here is never shown either. */
+
+const slugFor = artist => {
+  const p = (store.profiles || []).find(x => x.artist === artist);
+  return p?.slug || String(artist || '').toLowerCase().replace(/\s+/g, '');
+};
+
+/** Artists this account may act on: everyone for an admin, itself for an artist. */
+const myArtists = () => {
+  if (isAdmin()) return (store.profiles || []).map(p => p.artist);
+  return store.myArtist ? [store.myArtist] : [];
+};
+
+function renderAccount() {
+  const btn = $('#acct-btn'), panel = $('#acct-panel'), avatar = $('#acct-avatar');
+  if (!btn) return;
+
+  const email = store.session?.user?.email || '';
+  const who = store.myArtist || email;
+  const role = isAdmin() ? 'Label admin' : store.myArtist ? 'Artist' : store.isTeam ? 'Team' : '';
+  // Signed out there is no initial to show, and a question mark reads as an
+  // error rather than an invitation.
+  avatar.textContent = store.session ? (who.trim().charAt(0).toUpperCase() || '·') : '·';
+  btn.classList.toggle('signed-in', !!store.session);
+
+  const mine = myArtists();
+  const primary = store.myArtist || mine[0];
+
+  // The two quick links in the bar itself, so the most common jumps are one
+  // click and do not need the menu opened at all.
+  const quickHub = $('#nav-hub'), quickPage = $('#nav-page');
+  if (primary && store.isTeam) {
+    quickHub.href = `/a/${slugFor(primary)}`;
+    quickPage.href = `/artist/${slugFor(primary)}`;
+    quickHub.hidden = quickPage.hidden = false;
+    quickHub.textContent = isAdmin() ? `${primary} hub` : 'My hub';
+    quickPage.textContent = isAdmin() ? `${primary} page` : 'My page';
+  } else {
+    quickHub.hidden = quickPage.hidden = true;
+  }
+
+  if (!store.session) {
+    panel.innerHTML = `
+      <div class="acct-head">
+        <strong>Not signed in</strong>
+        <span class="muted sm">Viewing the public dashboard.</span>
+      </div>
+      <div class="acct-group">
+        <a class="acct-item" href="/join"><span class="acct-ic">→</span>
+          <span>Team sign in or join<small>Artists and label staff</small></span></a>
+      </div>`;
+    return;
+  }
+
+  const artistLinks = mine.map(name => `
+    <div class="acct-artist">
+      <span class="acct-artist-name">${esc(name)}</span>
+      <span class="acct-artist-links">
+        <a href="/a/${esc(slugFor(name))}">Link hub</a>
+        <a href="/artist/${esc(slugFor(name))}">Artist page</a>
+      </span>
+    </div>`).join('');
+
+  panel.innerHTML = `
+    <div class="acct-head">
+      <strong>${esc(who)}</strong>
+      <span class="muted sm">${esc(email)}${role ? ' · ' + esc(role) : ''}</span>
+    </div>
+
+    <div class="acct-group">
+      <span class="acct-label">Go to</span>
+      <a class="acct-item is-here" href="/"><span class="acct-ic">◆</span>
+        <span>Command Center<small>You are here</small></span></a>
+      <a class="acct-item" id="acct-crm" href="${esc(crmSsoUrl())}" target="_blank" rel="noopener">
+        <span class="acct-ic">◈</span>
+        <span>ZAH CRM<small>Fans, campaigns and invoices. Opens signed in.</small></span></a>
+    </div>
+
+    ${artistLinks ? `<div class="acct-group">
+      <span class="acct-label">${isAdmin() ? 'Public pages' : 'Your public pages'}</span>
+      ${artistLinks}
+    </div>` : ''}
+
+    <div class="acct-group">
+      <a class="acct-item" href="#" id="acct-out"><span class="acct-ic">×</span>
+        <span>Sign out</span></a>
+    </div>`;
+}
+
+function initAccount() {
+  const btn = $('#acct-btn'), panel = $('#acct-panel');
+  btn.addEventListener('click', () => {
+    const open = panel.hidden;
+    if (open) renderAccount();
+    panel.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('click', e => {
+    if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) {
+      panel.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+  panel.addEventListener('click', async e => {
+    // The CRM link is built from the access token, which can refresh while the
+    // menu sits open. Rebuild it at the moment of the click.
+    if (e.target.closest('#acct-crm')) { e.target.closest('#acct-crm').href = crmSsoUrl(); return; }
+    if (e.target.closest('#acct-out')) {
+      e.preventDefault();
+      await signOut();
+      panel.hidden = true;
+      renderAccount(); renderAuth(); draw();
+      toast('Signed out');
+    }
+  });
+  renderAccount();
+}
+
 /* Wipe every piece of state this device holds — stored session, service-worker
    caches, the registration itself — then reload. The escape hatch for a device
    stuck on a bad session or a stale offline copy. */
@@ -164,7 +286,7 @@ function initAuth() {
     store.session = session;
     if (!!session !== had) {
       await initSession();
-      renderAuth(); draw();
+      renderAuth(); renderAccount(); draw();
     }
   });
   renderAuth();
@@ -193,6 +315,7 @@ async function boot() {
     draw();
     initBell();
     initAuth();
+    initAccount();
   } catch (err) {
     syncEl.textContent = 'offline';
     syncEl.classList.add('err');
@@ -258,13 +381,16 @@ if ('serviceWorker' in navigator) {
 const hubSlug = location.pathname.match(/^\/a\/([\w-]+)\/?$/)?.[1];
 const profileSlug = location.pathname.match(/^\/artist\/([\w-]+)\/?$/)?.[1];
 const isJoin = /^\/join\/?$/.test(location.pathname);
-if (hubSlug || profileSlug || isJoin) {
+const isLabel = /^\/label\/?$/.test(location.pathname);
+if (hubSlug || profileSlug || isJoin || isLabel) {
   document.body.classList.add('hub-mode');
   const load = isJoin
     ? import('./join.js').then(m => m.boot())
-    : profileSlug
-      ? import('./profile.js').then(m => m.boot(profileSlug.toLowerCase()))
-      : import('./hub.js').then(m => m.boot(hubSlug.toLowerCase()));
+    : isLabel
+      ? import('./label.js').then(m => m.boot())
+      : profileSlug
+        ? import('./profile.js').then(m => m.boot(profileSlug.toLowerCase()))
+        : import('./hub.js').then(m => m.boot(hubSlug.toLowerCase()));
   load.catch(() => {
     $('#view').innerHTML = '<div class="loading">Could not load this page.</div>';
   });

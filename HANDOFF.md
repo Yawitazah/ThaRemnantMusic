@@ -24,19 +24,36 @@ Everything a new session needs to continue. Written 2026-08-04.
 
 ## Public pages (live)
 
-| Artist | Link hub | Full profile |
-|---|---|---|
-| BREED | `/a/breed` | `/artist/breed` |
-| King Konnect | `/a/kingkonnect` | `/artist/kingkonnect` |
-| JayThaRealist | `/a/jay` | `/artist/jay` |
-| Yawitazah | `/a/yawitazah` | `/artist/yawitazah` |
+| Page | URL |
+|---|---|
+| **Label landing page (fans)** | `/label` |
+| BREED | `/a/breed` · `/artist/breed` |
+| King Konnect | `/a/kingkonnect` · `/artist/kingkonnect` |
+| JayThaRealist | `/a/jay` · `/artist/jay` |
+| Yawitazah | `/a/yawitazah` · `/artist/yawitazah` |
 
-Hub = link-tree style (portrait with pulsing ring, social icon row, music buttons,
-discography, email capture). Profile = DSP-shaped (cover header, monthly listeners,
-Follow, Popular ranked by plays, Artist pick, Albums / Singles+EPs, Featuring, On
-tour, About with aggregated reach, Discovered on, bottom player dock).
+`/label` = the audience-facing front door, added 2026-08-04. Hero, what is being
+pushed right now, latest releases, the roster, most played, Management, email
+capture. Ruddy dark Higgsfield plates that drift on scroll (`public/img/scenes/`).
+Deliberately carries **no internal numbers**. Still at `/label` rather than `/`
+because that call is Zah's; moving it is a three-line change in `server.js` and
+`app.js`.
 
-Both track every view and click into `hub_events`. `/join` is team onboarding.
+Hub = link-tree style. Profile = DSP-shaped (cover header, monthly listeners,
+Follow, Popular, Artist pick, discography, tour, About, bottom player dock).
+
+All three track into `hub_events`. `/join` is team onboarding.
+
+**The player is no longer YouTube-only.** `public/js/dock.js` is shared by the hub,
+the profile and the label page: artwork plays in the bottom dock via YouTube,
+Spotify or Apple embeds, and the platform buttons leave for the platform. This
+matters because 22 of 32 releases have no YouTube URL and used to be unplayable.
+Spotify and Apple serve a 30 second preview to a signed-out visitor and the full
+song to a subscriber — their rule, not a bug.
+
+**Cover art fills itself in.** `hydrateArt()` in `dock.js` pulls real sleeves from
+Spotify's public oEmbed and the iTunes lookup API (both CORS-open, no key) and
+prefers them over YouTube stills, which are 16:9 and get cropped in a square tile.
 
 ---
 
@@ -53,7 +70,20 @@ code on step 2** → set-up screen (install app, notifications, CRM).
 | King Konnect | `REMNANT-KING-4T9X` |
 | JayThaRealist | `REMNANT-JAY-8R3W` |
 | Yawitazah | `REMNANT-ZAH-5N6Q` |
+| Byron "Breakout" Davis | `REMNANT-BYRON-3D8P` |
 | Spare team member | `REMNANT-TEAM-2J7V` |
+
+**Navigation exists now.** The topbar carries quick "My hub" and "My page" links
+plus an account menu (Command Center, ZAH CRM, the artist's own public pages, sign
+out). The Command Center and CRM entries render **only when `is_team()` is true**,
+so a fan never sees either. On `/a/{slug}` and `/artist/{slug}`, `teambar.js` adds
+a slim bar back to the Command Center — it confirms membership through the
+`is_team()` RPC rather than trusting a stored token, so a stale session in a
+browser cannot expose those links.
+
+**Nobody has claimed a code yet, so the SSO handoff has never been exercised by a
+non-admin.** Zah skips the invite step because he is in `admins`. Worth watching
+the first time a real artist signs in.
 
 Zah (`zahbrandsolutions@gmail.com`) is in the `admins` table, so he skips the invite
 step entirely and can edit every artist. That is expected, not a bug.
@@ -83,26 +113,20 @@ verifies the token, checks `is_team()`, and issues a CRM session for the shared
 
 ## Open items, in priority order
 
-### 1. A decision is waiting — CRM visual quality
-Zah's words: it should look **"sleek and impressive"**. The Remnant workspace now
-has correct warm-dark theming (verified on screen), but the *layout* still reads
-dated:
-- Install banner is a heavy slab across the top fifth of the screen
-- "Getting Started Guide" renders **twice** on one screen
-- Stat tile icons are four unrelated colours with no brand relationship
-- Everything is an equally-weighted rounded box; no hierarchy
-- Empty panels are large blank rectangles
-
-**He was asked to choose and has not answered yet:**
-- **A** — restyle for the Remnant workspace only (safe, one-off skin)
-- **B** — fix the shared CRM dashboard for every account (recommended, since he is
-  productizing it, but touches shared UI)
-
-Start here by getting that answer.
+### 1. CRM visual quality — CLOSED 2026-08-04
+Zah logged in, looked at it, and approved the current design as-is for the whole
+team. **No restyle. Neither option A nor B.** The whole team shares the single
+`remnant` CRM account, so everyone already lands in the workspace he approved.
+What was left was access, and that is now the CRM entry in the topbar account menu.
 
 ### 2. Data Zah still owes
-- **YouTube URLs** for releases missing them. 22 of 32 have none. Many are genuinely
-  DSP-only — the button appears automatically once a URL exists.
+- **Byron Davis's social handles and a photo.** His card on `/label` has a portrait
+  slot the layout already supports, and no links. Web search only found a different
+  company with a similar name, so nothing was attached rather than guessed.
+- **A portrait for King Konnect.** He is the only artist with no `image_url`, so his
+  roster card falls back to a video still that reads as cover art, not a photo.
+- **YouTube URLs** for releases missing them. 22 of 32 have none. They are all
+  playable through Spotify or Apple now, so this is no longer blocking.
 - **Tour dates** → `tour_dates` table
 - **Playlist placements** → `discovered_on` table
 
@@ -155,6 +179,18 @@ Start here by getting that answer.
   fails.
 - `npm test` renders all 14 tabs in read-only and admin modes. Run before every push.
   New `data.js` exports must be added to the mock in `scripts/smoke-test.js`.
+- **`loading="lazy"` on a detached `new Image()` never fires `onload`.** The browser
+  defers the fetch until the element is in the document, and code that waits for the
+  load before inserting it deadlocks. This silently broke cover-art hydration.
+- A page opened in a **background tab gets no animation frames** and unreliable
+  IntersectionObserver callbacks, so scroll-reveal content sits at opacity 0 until it
+  is focused. `label.js` sweeps the viewport directly on load, on `visibilitychange`
+  and on scroll so nothing can stay invisible.
+- Reveal effects are **not deleted** under `prefers-reduced-motion` (many Windows
+  desktops report it). The parallax drift is dropped, the fade stays.
+- **The in-app browser pane still cannot screenshot.** Use the Chrome extension.
+  Both the cover-art deadlock and the squeezed Management column were only visible
+  on the real page.
 
 **Supabase**
 - **A `DELETE` with a `WHERE` clause needs `SELECT` on those rows.** Team-only read

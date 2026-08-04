@@ -9,6 +9,8 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
 import { socialRow, rollAll } from './icons.js';
+import { SRC_NAME, ytThumb, playableArt, hydrateArt, dockMarkup, initDock } from './dock.js';
+import { mountTeamBar } from './teambar.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -42,20 +44,21 @@ const sid = () => {
   return s;
 };
 
+/* `page` separates profile traffic from hub traffic, and `item` names the
+   release or track so the dashboard can count each one on its own. */
 function track(artist, event, extra = {}) {
   if (isBot()) return;
   fetch(`${REST}/hub_events`, {
     method: 'POST', keepalive: true,
     headers: { ...HEADERS, prefer: 'return=minimal' },
     body: JSON.stringify({
-      artist, event, session_id: sid(),
+      artist, event, session_id: sid(), page: 'profile',
       referrer: (document.referrer || '').slice(0, 300) || null,
       ua: navigator.userAgent.slice(0, 300), ...extra,
     }),
   }).catch(() => {});
 }
 
-const ytThumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
 const monthYear = d => new Date(d + 'T00:00:00')
   .toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
@@ -100,26 +103,16 @@ export async function boot(slug) {
   const feats = releases.filter(r => r.kind === 'feature');
   const pick = releases.find(r => r.id === profile.pick_release_id) || own[0];
 
-  const ytId = url => (url?.match(/[?&]v=([\w-]+)/) || url?.match(/youtu\.be\/([\w-]+)/) || [])[1] || '';
-
-  /* YouTube stays on the page in a lightbox; the DSPs have to leave, since
-     nothing but their own apps can play a full track. */
-  const dsp = (r, label, url) => {
-    if (!url) return '';
-    const lbl = esc(`${r.title} · ${label}`);
-    if (label === 'YouTube' && ytId(url)) {
-      return `<button class="pf-dsp" type="button" data-lightbox="${esc(ytId(url))}"
-                data-label="${lbl}">${label}</button>`;
-    }
-    return `<a class="pf-dsp" href="${esc(url)}" target="_blank" rel="noopener"
-              data-label="${lbl}">${label}</a>`;
-  };
+  /* Every button goes straight out to the platform the fan chose. Playing
+     without leaving happens on the artwork instead, in the dock below. */
+  const dsp = (r, label, url) => url
+    ? `<a class="pf-dsp" href="${esc(url)}" target="_blank" rel="noopener"
+         data-item="${esc(r.title)}" data-label="${esc(`${r.title} · ${label}`)}">${label}</a>`
+    : '';
 
   const releaseCard = r => `
     <article class="pf-rel">
-      <div class="pf-rel-art">${r.youtube_url
-        ? `<img src="${esc(ytThumb(ytId(r.youtube_url)))}" alt="" loading="lazy">`
-        : `<span class="pf-rel-ph">${esc((r.title || '?').slice(0, 1))}</span>`}</div>
+      ${playableArt(r)}
       <h4>${esc(r.title)}</h4>
       <p class="muted sm">${r.year || ''}${r.kind ? ' · ' + esc(r.kind) : ''}</p>
       <div class="pf-dsps">${dsp(r, 'Spotify', r.spotify_url)}${dsp(r, 'Apple', r.apple_url)}${dsp(r, 'YouTube', r.youtube_url)}</div>
@@ -160,9 +153,8 @@ export async function boot(slug) {
         <li>
           <span class="pf-rank">${i + 1}</span>
           <button class="pf-track" type="button"
-             data-play="${esc(t.video_id)}" data-title="${esc(t.title)}"
-             data-credit="${esc(t.credit || '')}"
-             data-label="${esc('Popular · ' + t.title)}">
+             data-src="youtube" data-ref="${esc(t.video_id)}" data-title="${esc(t.title)}"
+             data-credit="${esc(t.credit || '')}" data-item="${esc(t.title)}">
             <img src="${esc(ytThumb(t.video_id))}" alt="" loading="lazy">
             <span class="pf-track-t">${esc(t.title)}<small>${esc(t.credit || '')}</small></span>
             <span class="pf-plays">${fmt(t.views)}</span>
@@ -176,9 +168,7 @@ export async function boot(slug) {
   <section class="pf-section pf-pick">
     <h2>Artist pick</h2>
     <div class="pf-pick-body">
-      <div class="pf-rel-art">${pick.youtube_url
-        ? `<img src="${esc(ytThumb(ytId(pick.youtube_url)))}" alt="" loading="lazy">`
-        : `<span class="pf-rel-ph">${esc(pick.title.slice(0, 1))}</span>`}</div>
+      ${playableArt(pick)}
       <div>
         <h3>${esc(pick.title)}</h3>
         <p class="muted sm">${esc(profile.pick_note || `${pick.kind || 'release'}${pick.year ? ' · ' + pick.year : ''}`)}</p>
@@ -255,105 +245,35 @@ export async function boot(slug) {
   </footer>
 </div>
 
-<div class="pf-dock" id="pf-dock" hidden>
-  <div class="pf-dock-inner">
-    <div class="pf-dock-video"><div id="pf-dock-frame"></div></div>
-    <div class="pf-dock-meta">
-      <strong id="pf-dock-title"></strong>
-      <small id="pf-dock-credit"></small>
-    </div>
-    <div class="pf-dock-actions">
-      <button class="pf-dock-btn" id="pf-dock-expand" type="button" title="Expand">⤢</button>
-      <a class="pf-dock-btn" id="pf-dock-yt" target="_blank" rel="noopener" title="Watch on YouTube">↗</a>
-      <button class="pf-dock-btn" id="pf-dock-close" type="button" title="Close">✕</button>
-    </div>
-  </div>
-</div>
-
-<div class="pf-lightbox" id="pf-lightbox" hidden>
-  <button class="pf-lightbox-close" id="pf-lightbox-close" type="button" aria-label="Close">✕</button>
-  <div class="pf-lightbox-frame" id="pf-lightbox-frame"></div>
-</div>`;
+${dockMarkup()}`;
 
   rollAll(view);
 
   const seen = `pf-seen-${slug}`;
   if (!sessionStorage.getItem(seen)) { sessionStorage.setItem(seen, '1'); track(a, 'view'); }
 
-  /* ---------- player dock + lightbox ----------
-     Tracks play in a bar docked across the bottom so browsing continues while
-     the music runs; the expand control lifts the same video into a lightbox. */
-  const dock = document.getElementById('pf-dock');
-  const dockFrame = document.getElementById('pf-dock-frame');
-  const lightbox = document.getElementById('pf-lightbox');
-  const lightboxFrame = document.getElementById('pf-lightbox-frame');
-  let playing = null;
+  hydrateArt(view);
+  mountTeamBar({ artist: a, slug, here: 'profile' });
 
-  const embed = (id, autoplay = 1) =>
-    `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=${autoplay}&rel=0"
-       title="Player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
-       allowfullscreen loading="lazy"></iframe>`;
+  const { play } = initDock();
 
-  const play = (id, title, credit) => {
-    playing = { id, title, credit };
-    dockFrame.innerHTML = embed(id);
-    document.getElementById('pf-dock-title').textContent = title;
-    document.getElementById('pf-dock-credit').textContent = credit || '';
-    document.getElementById('pf-dock-yt').href = `https://www.youtube.com/watch?v=${id}`;
-    dock.hidden = false;
-    document.body.classList.add('has-dock');
-  };
-
-  const closeDock = () => {
-    dockFrame.innerHTML = '';          // stops playback
-    dock.hidden = true;
-    document.body.classList.remove('has-dock');
-    playing = null;
-  };
-
-  const openLightbox = id => {
-    lightboxFrame.innerHTML = embed(id);
-    lightbox.hidden = false;
-    document.body.style.overflow = 'hidden';
-  };
-  const closeLightbox = () => {
-    lightboxFrame.innerHTML = '';
-    lightbox.hidden = true;
-    document.body.style.overflow = '';
-  };
-
-  document.getElementById('pf-dock-close').addEventListener('click', closeDock);
-  document.getElementById('pf-dock-expand').addEventListener('click', () => {
-    if (!playing) return;
-    dockFrame.innerHTML = '';          // only one thing plays at a time
-    openLightbox(playing.id);
-  });
-  document.getElementById('pf-lightbox-close').addEventListener('click', closeLightbox);
-  lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
-  document.addEventListener('keydown', e => {
-    if (e.key !== 'Escape') return;
-    if (!lightbox.hidden) closeLightbox();
-    else if (!dock.hidden) closeDock();
-  });
-
-  // Every outbound tap is measured, same as the hub.
+  /* Playing is recorded as a play and leaving for a platform as a click, so
+     the two never get averaged into one meaningless number. */
   view.addEventListener('click', e => {
-    const playBtn = e.target.closest('[data-play]');
+    const playBtn = e.target.closest('[data-src][data-ref]');
     if (playBtn) {
-      play(playBtn.dataset.play, playBtn.dataset.title, playBtn.dataset.credit);
-      track(a, 'click', { label: playBtn.dataset.label });
-      return;
-    }
-    const lb = e.target.closest('[data-lightbox]');
-    if (lb) {
-      openLightbox(lb.dataset.lightbox);
-      track(a, 'click', { label: lb.dataset.label });
+      const { src, ref, title, credit, item } = playBtn.dataset;
+      const opened = play(src, ref, title, credit);
+      track(a, opened ? 'play' : 'click', {
+        item: item || title || null,
+        label: `${title || item} · ${SRC_NAME[src] || src}`,
+      });
       return;
     }
     const link = e.target.closest('[data-link-id]');
     if (link) return track(a, 'click', { link_id: +link.dataset.linkId });
     const labelled = e.target.closest('[data-label]');
-    if (labelled) track(a, 'click', { label: labelled.dataset.label });
+    if (labelled) track(a, 'click', { label: labelled.dataset.label, item: labelled.dataset.item || null });
   });
 
   /* Follow is anonymous — keyed to this browser, so it survives a refresh and

@@ -52,11 +52,41 @@ const ago = iso => {
   return Math.round(s / 86400) + 'd ago';
 };
 
+/* Windows the growth card can be read through. `days` slices the daily series;
+   `all` deliberately carries no cap, because a capped all-time is a lie. */
 const RANGES = [
-  { k: '7d',  label: '7 days',  days: 7 },
-  { k: '28d', label: '28 days', days: 28 },
-  { k: 'all', label: 'All time', days: 56 },
+  { k: '24h', label: '24 hours', days: 1,    suffix: '24h' },
+  { k: '7d',  label: '7 days',   days: 7,    suffix: '7d'  },
+  { k: '28d', label: '28 days',  days: 28,   suffix: '28d' },
+  { k: 'all', label: 'All time', days: null, suffix: 'total' },
 ];
+
+/* Both the chart and its tooltips read from here, so a hover can never report a
+   different number than the bar it is sitting on. */
+const linkRowsFor = h => {
+  const sfx = (RANGES.find(x => x.k === range) || RANGES[2]).suffix;
+  return (h?.links || [])
+    .map(l => ({ k: l.label, v: sfx === 'total' ? l.clicks : (l[`clicks_${sfx}`] ?? l.clicks) }))
+    .filter(l => l.v > 0);
+};
+
+const clockTime = iso => new Date(iso.length <= 16 ? iso + ':00' : iso)
+  .toLocaleTimeString(undefined, { hour: 'numeric' });
+
+const dayLabel = d => new Date(d + 'T00:00:00')
+  .toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+/* A number on its own says nothing. Comparing a window to the one before it is
+   the difference between a total and actual growth. */
+function delta(now, prev) {
+  if (prev === null || prev === undefined) return '';
+  if (!prev && !now) return '<span class="delta flat">no change</span>';
+  if (!prev) return `<span class="delta up">new</span>`;
+  const pct = Math.round(((now - prev) / prev) * 100);
+  if (pct === 0) return '<span class="delta flat">flat</span>';
+  const cls = pct > 0 ? 'up' : 'down';
+  return `<span class="delta ${cls}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct)}%</span>`;
+}
 
 /* ---------- artist-owned page editing ---------- */
 
@@ -119,36 +149,89 @@ function growth(a) {
   const hubUrl = `${location.origin}/a/${slug}`;
   const canEdit = canEditHub(a.artist);
 
-  const pick = suffix => ({
-    views: h?.[`views_${suffix}`] || 0,
-    clicks: h?.[`clicks_${suffix}`] || 0,
-    captures: h?.[`captures_${suffix}`] ?? null,
-  });
-  const r = range === 'all' ? pick('total') : pick(range);
-  const views28 = r.views, clicks28 = r.clicks;
-  const ctr = views28 ? Math.round((clicks28 / views28) * 100) : 0;
-  const rangeLabel = RANGES.find(x => x.k === range).label.toLowerCase();
-  const rangeDays = RANGES.find(x => x.k === range).days;
+  const win = RANGES.find(x => x.k === range);
+  const sfx = win.suffix;
+  const rangeLabel = win.label.toLowerCase();
 
-  const cutoff = Date.now() - rangeDays * 86400_000;
-  const daily = (h?.daily || [])
-    .filter(d => new Date(d.d).getTime() >= cutoff)
-    .map(d => ({ k: d.d.slice(5), v: d.views }));
-  const linkRows = (h?.links || []).filter(l => l.clicks > 0)
-    .map(l => ({ k: l.label, v: l.clicks }));
+  const n = key => h?.[key] || 0;
+  const views  = n(`views_${sfx}`);
+  const clicks = n(`clicks_${sfx}`);
+  const plays  = n(`plays_${sfx}`);
+  const captures = n(`captures_${sfx}`);
+  // All time has nothing before it to compare against.
+  const prev = key => range === 'all' ? null : (h?.[`${key}_prev_${sfx}`] ?? 0);
+  /* Reported as a rate, not a percentage: one visitor can play a track and then
+     tap three platforms, so this legitimately goes above 1 and a "117%
+     click-through" would just look broken. */
+  const perVisit = views ? (clicks + plays) / views : 0;
+  const perVisitText = perVisit >= 1
+    ? `${perVisit.toFixed(1)} plays or clicks out per visit`
+    : `${Math.round(perVisit * 100)}% of visits turned into a play or a click out`;
 
-  const recent = (store.hubRecent || []).filter(r => r.artist === a.artist).slice(0, 8);
+  /* 24 hours reads as hour buckets; everything longer reads as days. */
+  const cutoff = win.days === null ? 0 : Date.now() - win.days * 86400_000;
+  const series = range === '24h'
+    ? (h?.hourly || []).map(x => ({ k: clockTime(x.h), v: x.views }))
+    : (h?.daily || [])
+        .filter(d => new Date(d.d + 'T00:00:00').getTime() >= cutoff)
+        .map(d => ({ k: dayLabel(d.d), v: d.views }));
+  const seriesNote = range === '24h' ? 'hourly hub views' : 'daily hub views';
 
-  const feed = recent.length ? `
-    <h4 style="margin:20px 0 8px">Latest activity</h4>
+  const linkRows = linkRowsFor(h);
+
+  /* Per release and track, the thing that was actually missing: how many times
+     each one was played and how many times it was clicked out to a platform. */
+  const items = (h?.items || [])
+    .map(i => ({
+      item: i.item,
+      plays:  range === 'all' ? i.plays  : (i[`plays_${sfx}`]  ?? 0),
+      clicks: range === 'all' ? i.clicks : (i[`clicks_${sfx}`] ?? 0),
+      last_at: i.last_at,
+    }))
+    .filter(i => i.plays + i.clicks > 0)
+    .sort((x, y) => (y.plays + y.clicks) - (x.plays + x.clicks));
+
+  const itemTable = !items.length ? '' : `
+    <h4 style="margin:20px 0 6px">Every release, by the numbers</h4>
+    <p class="muted sm" style="margin:0 0 10px">Plays are taps on the player. Clicks left the page for a platform. Window: ${esc(rangeLabel)}.</p>
+    <table class="sm hub-items"><thead><tr>
+      <th>Release or track</th><th class="r">Played</th><th class="r">Clicked out</th><th class="r">Last</th>
+    </tr></thead><tbody>
+      ${items.map(i => `
+        <tr>
+          <td><strong>${esc(i.item)}</strong></td>
+          <td class="r">${i.plays ? fmt(i.plays) : '<span class="muted">0</span>'}</td>
+          <td class="r">${i.clicks ? fmt(i.clicks) : '<span class="muted">0</span>'}</td>
+          <td class="r muted sm" style="white-space:nowrap">${i.last_at ? esc(ago(i.last_at)) : '—'}</td>
+        </tr>`).join('')}
+    </tbody></table>`;
+
+  /* The old feed printed the raw event name and left the reader to guess. Each
+     row is now one plain sentence: who, what, where from. */
+  const PAGE_NAME = { hub: 'the link hub', profile: 'the artist page', label: 'the label page' };
+  const sentence = r => {
+    const where = PAGE_NAME[r.page] || 'the link hub';
+    if (r.event === 'view')    return `opened <strong>${esc(where)}</strong>`;
+    if (r.event === 'capture') return `joined the mailing list from <strong>${esc(where)}</strong>`;
+    if (r.event === 'play')    return `played <strong>${esc(r.item || r.label || 'a track')}</strong>`;
+    if (r.item)                return `clicked through to <strong>${esc(r.label || r.item)}</strong>`;
+    return `tapped <strong>${esc(r.label || 'a link')}</strong>`;
+  };
+  const VERB = { view: 'Visit', click: 'Click', play: 'Play', capture: 'New fan' };
+  const recent = (store.hubRecent || []).filter(x => x.artist === a.artist).slice(0, 10);
+
+  const feed = !recent.length ? '' : `
+    <h4 style="margin:22px 0 6px">Latest activity</h4>
+    <p class="muted sm" style="margin:0 0 10px">The last ${recent.length} thing${recent.length === 1 ? '' : 's'}
+      ${esc(a.artist)}'s visitors did, newest first. Each row is one action by one visitor.</p>
     <ul class="hub-feed">${recent.map(r => `
       <li>
-        <span class="badge ${r.event === 'capture' ? 'p-good' : r.event === 'click' ? 'p-info' : 'p-mute'}">${esc(r.event)}</span>
-        <span>${r.event === 'view' ? 'opened the hub' : r.event === 'capture' ? 'joined the list' : esc(r.label || 'a link')}</span>
-        ${r.ref ? `<span class="muted sm">from ${esc(r.ref)}</span>` : ''}
-        <span class="muted sm" style="margin-left:auto">${ago(r.at)}</span>
+        <span class="badge ${r.event === 'capture' ? 'p-good' : r.event === 'play' ? 'p-info'
+          : r.event === 'click' ? 'p-info' : 'p-mute'}">${esc(VERB[r.event] || r.event)}</span>
+        <span class="hub-feed-what">A visitor ${sentence(r)}${r.ref ? `, arriving from ${esc(r.ref)}` : ''}.</span>
+        <span class="muted sm hub-feed-when">${esc(ago(r.at))}</span>
       </li>`).join('')}
-    </ul>` : '';
+    </ul>`;
 
   const editor = !canEdit ? '' : `
     <div id="hub-editor" ${editorOpen ? '' : 'hidden'}>
@@ -175,7 +258,8 @@ function growth(a) {
     <div class="spread" style="flex-wrap:wrap;gap:10px">
       <div>
         <h3 style="margin:0">Growth</h3>
-        <p class="muted sm" style="margin:.3em 0 0">First-party numbers from the public link hub — every view and button press.</p>
+        <p class="muted sm" style="margin:.3em 0 0">First-party numbers from the public pages. Every view, play and button press,
+          measured here rather than borrowed from a platform.</p>
       </div>
       <div class="row">
         <a class="btn sm ghost" href="${esc(hubUrl)}" target="_blank" rel="noopener">View hub</a>
@@ -189,19 +273,28 @@ function growth(a) {
     </div>
 
     <div class="grid g4" style="margin-top:12px">
-      ${stat(`Hub views · ${rangeLabel}`, fmt(views28), `${fmt(h?.views_total || 0)} all time`)}
-      ${stat(`Link clicks · ${rangeLabel}`, fmt(clicks28), `${fmt(h?.clicks_total || 0)} all time`)}
-      ${stat('Click-through', views28 ? ctr + '%' : '—', `clicks per visit, ${rangeLabel}`, ctr >= 50 ? 'good' : '')}
-      ${stat('Fans captured', fmt((range === 'all' ? h?.captures_total : r.captures) || 0),
-          range === 'all' ? 'via the hub email form' : `${fmt(h?.captures_total || 0)} all time`,
+      ${stat(`Page views · ${rangeLabel}`, fmt(views),
+          `${delta(views, prev('views'))} ${fmt(h?.views_total || 0)} all time`)}
+      ${stat(`Tracks played · ${rangeLabel}`, fmt(plays),
+          `${delta(plays, prev('plays'))} ${fmt(h?.plays_total || 0)} all time`)}
+      ${stat(`Clicks out · ${rangeLabel}`, fmt(clicks),
+          `${delta(clicks, prev('clicks'))} ${fmt(h?.clicks_total || 0)} all time`)}
+      ${stat('Fans captured', fmt(captures),
+          range === 'all' ? 'via the email form' : `${fmt(h?.captures_total || 0)} all time`,
           h?.captures_total ? 'good' : '')}
     </div>
 
-    ${daily.length >= 2 ? `<div style="margin-top:16px">${line(daily, { aria: 'daily hub views' })}</div>`
-      : daily.length === 1 ? `<p class="muted sm" style="margin-top:12px">Daily chart appears once there are two days of traffic in this window.</p>` : ''}
-    ${linkRows.length ? `<h4 style="margin:18px 0 8px">Clicks by destination</h4><div id="hub-bars">${hbar(linkRows, { aria: 'clicks per link' })}</div>` : ''}
+    <p class="muted sm" style="margin:10px 0 0">
+      ${views ? esc(perVisitText) : 'No visits in this window yet'}${
+        h?.views_profile ? ` · ${fmt(h.views_hub || 0)} on the link hub, ${fmt(h.views_profile)} on the artist page` : ''}.
+    </p>
+
+    ${series.length >= 2 ? `<div style="margin-top:16px">${line(series, { aria: seriesNote })}</div>`
+      : series.length === 1 ? `<p class="muted sm" style="margin-top:12px">The ${range === '24h' ? 'hourly' : 'daily'} chart appears once there are two ${range === '24h' ? 'hours' : 'days'} of traffic in this window.</p>` : ''}
+    ${linkRows.length ? `<h4 style="margin:18px 0 8px">Clicks by destination · ${esc(rangeLabel)}</h4><div id="hub-bars">${hbar(linkRows, { aria: 'clicks per link' })}</div>` : ''}
+    ${itemTable}
     ${!h ? `<div class="callout" style="margin-top:14px"><strong>No traffic yet.</strong>
-      Share the hub link — every visit and tap lands here the moment it happens.</div>` : ''}
+      Share the hub link. Every visit and tap lands here the moment it happens.</div>` : ''}
     ${feed}
     ${editor}`, 'growth-card');
 }
@@ -396,7 +489,7 @@ export function bind(mount, rerender) {
   const bars = mount.querySelector('#hub-bars');
   if (bars) {
     const a = (store.hub || {})[current];
-    if (a) bindBars(bars, (a.links || []).filter(l => l.clicks > 0).map(l => ({ k: l.label, v: l.clicks })));
+    if (a) bindBars(bars, linkRowsFor(a));
   }
 
   const deleted = new Set();
