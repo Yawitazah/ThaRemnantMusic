@@ -104,6 +104,8 @@ export const signUpPassword = async () => ({});
 export const signInPassword = async () => ({});
 export const claimInvite = async () => ({});
 export const crmSsoUrl = () => 'https://zahcrm.com';
+export const saveProfile = async (artist, patch) => { const p=store.profiles.find(x=>x.artist===artist); if(p) Object.assign(p,patch); return p; };
+export const uploadArtistPhoto = async () => 'https://example.com/photo.jpg';
 export const loadAll = async () => store;
 export const updateRow = async (t,id,patch,list) => { const r=list?.find(x=>x.id===id); if(r) Object.assign(r,patch); return r; };
 export const insertRow = async (t,row,list) => { const r={id:Date.now(),...row}; list?.push(r); return r; };

@@ -1,9 +1,11 @@
-import { store, canEditHub, updateRow, insertRow, deleteRow, sb } from '../data.js';
+import { store, canEditHub, updateRow, insertRow, deleteRow, sb,
+         saveProfile, uploadArtistPhoto } from '../data.js';
 import { fmt, esc, stat, card, hbar, bindBars, line, toast } from '../ui.js';
 import { imgTag } from './now.js';
 
 let current = null;
 let editorOpen = false;
+let profileOpen = false;
 let range = '28d'; // growth window: 7d | 28d | all
 
 /** Called by the router when the URL is #artists/<name>. */
@@ -55,6 +57,61 @@ const RANGES = [
   { k: '28d', label: '28 days', days: 28 },
   { k: 'all', label: 'All time', days: 56 },
 ];
+
+/* ---------- artist-owned page editing ---------- */
+
+function profileEditor(a) {
+  if (!canEditHub(a.artist)) return '';
+  const releases = (store.releases || []).filter(r => r.artist === a.artist);
+
+  return card(`
+    <div class="spread" style="flex-wrap:wrap;gap:10px">
+      <div>
+        <h3 style="margin:0">Your page</h3>
+        <p class="muted sm" style="margin:.3em 0 0">Photo, bio and the record you want up top.
+        This is what visitors see on your public profile.</p>
+      </div>
+      <button class="btn sm ghost" id="pf-edit-toggle" type="button">
+        ${profileOpen ? 'Close' : 'Edit page'}</button>
+    </div>
+
+    <div id="pf-editor" ${profileOpen ? '' : 'hidden'} style="margin-top:16px">
+      <div class="pf-edit-grid">
+        <div>
+          <div class="pf-edit-photo" id="pf-photo-preview">
+            ${a.image_url
+              ? `<img src="${esc(a.image_url)}" alt="">`
+              : '<span class="muted sm">No photo yet</span>'}
+          </div>
+          <label class="btn sm ghost" style="margin-top:8px;display:inline-block;cursor:pointer">
+            Choose photo
+            <input type="file" id="pf-photo" accept="image/jpeg,image/png,image/webp" hidden>
+          </label>
+          <p class="muted sm" id="pf-photo-note" style="margin:.5em 0 0">JPG, PNG or WebP, up to 8MB. Square works best.</p>
+        </div>
+        <div>
+          <label>Tagline <span class="muted sm">one line, shown under your name</span>
+            <input type="text" id="pf-tagline" value="${esc(a.tagline || '')}" maxlength="160"></label>
+          <label>Bio
+            <textarea id="pf-bio" rows="6">${esc(a.bio || '')}</textarea></label>
+          <label>Hometown
+            <input type="text" id="pf-hometown" value="${esc(a.hometown || '')}" maxlength="120"></label>
+          <label>Artist pick <span class="muted sm">the release you want featured</span>
+            <select id="pf-pick">
+              <option value="">— none —</option>
+              ${releases.map(r => `<option value="${r.id}" ${r.id === a.pick_release_id ? 'selected' : ''}>
+                ${esc(r.title)}${r.year ? ' (' + r.year + ')' : ''}</option>`).join('')}
+            </select></label>
+          <label>Why this one <span class="muted sm">optional note beside the pick</span>
+            <input type="text" id="pf-picknote" value="${esc(a.pick_note || '')}" maxlength="160"></label>
+          <div class="row" style="margin-top:12px">
+            <button class="btn sm" id="pf-save" type="button">Save page</button>
+            <a class="btn sm ghost" href="/artist/${esc(a.slug || '')}" target="_blank" rel="noopener">Preview</a>
+          </div>
+        </div>
+      </div>
+    </div>`, 'profile-editor-card');
+}
 
 function growth(a) {
   const h = (store.hub || {})[a.artist];
@@ -235,6 +292,8 @@ export function render() {
   </div>
 </section>
 
+${profileEditor(a)}
+
 ${growth(a)}
 
 ${card(`
@@ -314,7 +373,26 @@ ${roster?.verdict ? card(`
   <p style="font-size:.95rem;color:var(--text-secondary);line-height:1.6">${esc(roster.verdict)}</p>`) : ''}`;
 }
 
+let pendingPhoto = null;   // uploaded but not yet saved onto the profile
+
 export function bind(mount, rerender) {
+  /* Photo upload happens on selection so the preview is immediate; the URL is
+     only written to the profile when the page is saved. */
+  mount.querySelector('#pf-photo')?.addEventListener('change', async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const note = mount.querySelector('#pf-photo-note');
+    note.textContent = 'Uploading…';
+    try {
+      const url = await uploadArtistPhoto(current, file);
+      pendingPhoto = url;
+      mount.querySelector('#pf-photo-preview').innerHTML = `<img src="${url}" alt="">`;
+      note.textContent = 'Looks good. Save the page to publish it.';
+    } catch (err) {
+      note.textContent = err.message;
+    }
+  });
+
   const bars = mount.querySelector('#hub-bars');
   if (bars) {
     const a = (store.hub || {})[current];
@@ -329,6 +407,32 @@ export function bind(mount, rerender) {
 
     const rangeChip = e.target.closest('.chip[data-range]');
     if (rangeChip) { range = rangeChip.dataset.range; rerender(); return; }
+
+    if (e.target.id === 'pf-edit-toggle') { profileOpen = !profileOpen; rerender(); return; }
+
+    if (e.target.id === 'pf-save') {
+      const btn = e.target;
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const pickVal = mount.querySelector('#pf-pick').value;
+        await saveProfile(current, {
+          tagline: mount.querySelector('#pf-tagline').value.trim() || null,
+          bio: mount.querySelector('#pf-bio').value.trim() || null,
+          hometown: mount.querySelector('#pf-hometown').value.trim() || null,
+          pick_release_id: pickVal ? +pickVal : null,
+          pick_note: mount.querySelector('#pf-picknote').value.trim() || null,
+          ...(pendingPhoto ? { image_url: pendingPhoto } : {}),
+        });
+        pendingPhoto = null;
+        toast('Your page is updated');
+        profileOpen = false;
+        rerender();
+      } catch (err) {
+        toast(`Could not save: ${err.message}`, 'err');
+        btn.disabled = false; btn.textContent = 'Save page';
+      }
+      return;
+    }
 
     if (e.target.id === 'hub-copy') {
       try {

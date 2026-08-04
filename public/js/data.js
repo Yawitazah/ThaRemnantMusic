@@ -88,6 +88,33 @@ export const crmSsoUrl = () => store.session?.access_token
   ? `https://zahcrm.com/sso/remnant?token=${encodeURIComponent(store.session.access_token)}`
   : 'https://zahcrm.com';
 
+/* Artists own their own page: photo, bio, tagline, pick. RLS decides whether
+   the write lands — the UI only decides whether to offer it. */
+export async function saveProfile(artist, patch) {
+  const { data, error } = await sb.from('artist_profiles')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('artist', artist).select().single();
+  if (error) throw error;
+  const i = (store.profiles || []).findIndex(p => p.artist === artist);
+  if (i > -1) store.profiles[i] = data;
+  return data;
+}
+
+/** Upload a portrait and return its public URL. */
+export async function uploadArtistPhoto(artist, file) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    throw new Error('Use a JPG, PNG or WebP image.');
+  }
+  if (file.size > 8 * 1024 * 1024) throw new Error('That image is over 8MB.');
+  const ext = file.type.split('/')[1].replace('jpeg', 'jpg');
+  // Timestamped name so a replacement is never served from a stale cache.
+  const path = `${artist.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from('artist-photos')
+    .upload(path, file, { cacheControl: '3600', upsert: true });
+  if (error) throw error;
+  return sb.storage.from('artist-photos').getPublicUrl(path).data.publicUrl;
+}
+
 export async function claimInvite(code) {
   const { data, error } = await sb.rpc('claim_invite', { invite_code: code });
   if (error) throw error;
