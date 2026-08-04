@@ -8,6 +8,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
+import { socialRow } from './icons.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -97,14 +98,25 @@ export async function boot(slug) {
   const feats = releases.filter(r => r.kind === 'feature');
   const pick = releases.find(r => r.id === profile.pick_release_id) || own[0];
 
-  const dsp = (r, label, url) => url
-    ? `<a class="pf-dsp" href="${esc(url)}" target="_blank" rel="noopener"
-         data-label="${esc(`${r.title} · ${label}`)}">${label}</a>` : '';
+  const ytId = url => (url?.match(/[?&]v=([\w-]+)/) || url?.match(/youtu\.be\/([\w-]+)/) || [])[1] || '';
+
+  /* YouTube stays on the page in a lightbox; the DSPs have to leave, since
+     nothing but their own apps can play a full track. */
+  const dsp = (r, label, url) => {
+    if (!url) return '';
+    const lbl = esc(`${r.title} · ${label}`);
+    if (label === 'YouTube' && ytId(url)) {
+      return `<button class="pf-dsp" type="button" data-lightbox="${esc(ytId(url))}"
+                data-label="${lbl}">${label}</button>`;
+    }
+    return `<a class="pf-dsp" href="${esc(url)}" target="_blank" rel="noopener"
+              data-label="${lbl}">${label}</a>`;
+  };
 
   const releaseCard = r => `
     <article class="pf-rel">
       <div class="pf-rel-art">${r.youtube_url
-        ? `<img src="${esc(ytThumb((r.youtube_url.match(/[?&]v=([\w-]+)/) || [])[1] || ''))}" alt="" loading="lazy">`
+        ? `<img src="${esc(ytThumb(ytId(r.youtube_url)))}" alt="" loading="lazy">`
         : `<span class="pf-rel-ph">${esc((r.title || '?').slice(0, 1))}</span>`}</div>
       <h4>${esc(r.title)}</h4>
       <p class="muted sm">${r.year || ''}${r.kind ? ' · ' + esc(r.kind) : ''}</p>
@@ -133,6 +145,8 @@ export async function boot(slug) {
         <button class="btn pf-follow" id="pf-follow" type="button">Follow</button>
         <a class="btn ghost" href="/a/${esc(slug)}">All links</a>
       </div>
+      ${socialRow(links.map(l => ({ label: l.label, url: l.url, id: l.id })),
+        { size: 20, cls: 'social-row social-row-hero' })}
     </div>
   </header>
 
@@ -143,12 +157,15 @@ export async function boot(slug) {
       ${popular.map((t, i) => `
         <li>
           <span class="pf-rank">${i + 1}</span>
-          <a class="pf-track" href="${esc(t.url || '#')}" target="_blank" rel="noopener"
+          <button class="pf-track" type="button"
+             data-play="${esc(t.video_id)}" data-title="${esc(t.title)}"
+             data-credit="${esc(t.credit || '')}"
              data-label="${esc('Popular · ' + t.title)}">
             <img src="${esc(ytThumb(t.video_id))}" alt="" loading="lazy">
             <span class="pf-track-t">${esc(t.title)}<small>${esc(t.credit || '')}</small></span>
             <span class="pf-plays">${fmt(t.views)}</span>
-          </a>
+            <span class="pf-play-ic" aria-hidden="true">▶</span>
+          </button>
         </li>`).join('')}
     </ol>
   </section>` : ''}
@@ -158,7 +175,7 @@ export async function boot(slug) {
     <h2>Artist pick</h2>
     <div class="pf-pick-body">
       <div class="pf-rel-art">${pick.youtube_url
-        ? `<img src="${esc(ytThumb((pick.youtube_url.match(/[?&]v=([\w-]+)/) || [])[1] || ''))}" alt="" loading="lazy">`
+        ? `<img src="${esc(ytThumb(ytId(pick.youtube_url)))}" alt="" loading="lazy">`
         : `<span class="pf-rel-ph">${esc(pick.title.slice(0, 1))}</span>`}</div>
       <div>
         <h3>${esc(pick.title)}</h3>
@@ -202,10 +219,7 @@ export async function boot(slug) {
         ${profile.role ? `<p class="muted sm">${esc(profile.role)}${profile.hometown ? ' · ' + esc(profile.hometown) : ''}</p>` : ''}
       </div>
     </div>
-    ${links.length ? `<div class="pf-socials">
-      ${links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener"
-        data-link-id="${l.id}">${esc(l.label)}</a>`).join('')}
-    </div>` : ''}
+    ${socialRow(links.map(l => ({ label: l.label, url: l.url, id: l.id })), { size: 22 })}
   </section>
 
   ${discovered.length ? `
@@ -227,14 +241,104 @@ export async function boot(slug) {
   <footer class="hub-foot">
     <img src="/img/logo-mark-180.png" alt="">
     <span>Tha Remnant Music Group</span>
+    <a class="powered" href="https://zahbrandsolutions.com" target="_blank" rel="noopener"
+       data-label="Powered by Zah Brand Solutions">Powered by Zah Brand Solutions</a>
   </footer>
+</div>
+
+<div class="pf-dock" id="pf-dock" hidden>
+  <div class="pf-dock-inner">
+    <div class="pf-dock-video"><div id="pf-dock-frame"></div></div>
+    <div class="pf-dock-meta">
+      <strong id="pf-dock-title"></strong>
+      <small id="pf-dock-credit"></small>
+    </div>
+    <div class="pf-dock-actions">
+      <button class="pf-dock-btn" id="pf-dock-expand" type="button" title="Expand">⤢</button>
+      <a class="pf-dock-btn" id="pf-dock-yt" target="_blank" rel="noopener" title="Watch on YouTube">↗</a>
+      <button class="pf-dock-btn" id="pf-dock-close" type="button" title="Close">✕</button>
+    </div>
+  </div>
+</div>
+
+<div class="pf-lightbox" id="pf-lightbox" hidden>
+  <button class="pf-lightbox-close" id="pf-lightbox-close" type="button" aria-label="Close">✕</button>
+  <div class="pf-lightbox-frame" id="pf-lightbox-frame"></div>
 </div>`;
 
   const seen = `pf-seen-${slug}`;
   if (!sessionStorage.getItem(seen)) { sessionStorage.setItem(seen, '1'); track(a, 'view'); }
 
+  /* ---------- player dock + lightbox ----------
+     Tracks play in a bar docked across the bottom so browsing continues while
+     the music runs; the expand control lifts the same video into a lightbox. */
+  const dock = document.getElementById('pf-dock');
+  const dockFrame = document.getElementById('pf-dock-frame');
+  const lightbox = document.getElementById('pf-lightbox');
+  const lightboxFrame = document.getElementById('pf-lightbox-frame');
+  let playing = null;
+
+  const embed = (id, autoplay = 1) =>
+    `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=${autoplay}&rel=0"
+       title="Player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+       allowfullscreen loading="lazy"></iframe>`;
+
+  const play = (id, title, credit) => {
+    playing = { id, title, credit };
+    dockFrame.innerHTML = embed(id);
+    document.getElementById('pf-dock-title').textContent = title;
+    document.getElementById('pf-dock-credit').textContent = credit || '';
+    document.getElementById('pf-dock-yt').href = `https://www.youtube.com/watch?v=${id}`;
+    dock.hidden = false;
+    document.body.classList.add('has-dock');
+  };
+
+  const closeDock = () => {
+    dockFrame.innerHTML = '';          // stops playback
+    dock.hidden = true;
+    document.body.classList.remove('has-dock');
+    playing = null;
+  };
+
+  const openLightbox = id => {
+    lightboxFrame.innerHTML = embed(id);
+    lightbox.hidden = false;
+    document.body.style.overflow = 'hidden';
+  };
+  const closeLightbox = () => {
+    lightboxFrame.innerHTML = '';
+    lightbox.hidden = true;
+    document.body.style.overflow = '';
+  };
+
+  document.getElementById('pf-dock-close').addEventListener('click', closeDock);
+  document.getElementById('pf-dock-expand').addEventListener('click', () => {
+    if (!playing) return;
+    dockFrame.innerHTML = '';          // only one thing plays at a time
+    openLightbox(playing.id);
+  });
+  document.getElementById('pf-lightbox-close').addEventListener('click', closeLightbox);
+  lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!lightbox.hidden) closeLightbox();
+    else if (!dock.hidden) closeDock();
+  });
+
   // Every outbound tap is measured, same as the hub.
   view.addEventListener('click', e => {
+    const playBtn = e.target.closest('[data-play]');
+    if (playBtn) {
+      play(playBtn.dataset.play, playBtn.dataset.title, playBtn.dataset.credit);
+      track(a, 'click', { label: playBtn.dataset.label });
+      return;
+    }
+    const lb = e.target.closest('[data-lightbox]');
+    if (lb) {
+      openLightbox(lb.dataset.lightbox);
+      track(a, 'click', { label: lb.dataset.label });
+      return;
+    }
     const link = e.target.closest('[data-link-id]');
     if (link) return track(a, 'click', { link_id: +link.dataset.linkId });
     const labelled = e.target.closest('[data-label]');

@@ -456,28 +456,39 @@ body.hub-mode .view { max-width:none; padding:0; }
 }
 .hub-portrait::before,
 .hub-portrait::after {
-  content:''; position:absolute; inset:-2px; border-radius:50%;
-  border:2px solid color-mix(in srgb, var(--series-2) 60%, transparent);
-  animation:hub-emanate 4.5s cubic-bezier(.22,.61,.36,1) infinite;
+  content:''; position:absolute; inset:-3px; border-radius:50%;
+  border:3px solid var(--series-2);
+  animation:hub-emanate 3s cubic-bezier(.2,.6,.35,1) infinite;
   pointer-events:none;
 }
-.hub-portrait::after { animation-delay:2.25s; }
+.hub-portrait::after { animation-delay:1.5s; }
+/* A third ring on the wrapper keeps the ripple continuous rather than a
+   pulse-pulse-pause. */
+.hub-ripple {
+  position:absolute; inset:-3px; border-radius:50%; pointer-events:none;
+  border:3px solid var(--series-2);
+  animation:hub-emanate 3s cubic-bezier(.2,.6,.35,1) infinite;
+  animation-delay:.75s;
+}
 .hub-portrait img {
   width:100%; height:100%; object-fit:cover; display:block;
   border-radius:50%; position:relative; z-index:1;
 }
 @keyframes hub-emanate {
-  0%   { transform:scale(1);    opacity:.55; }
-  70%  { opacity:0; }
-  100% { transform:scale(1.65); opacity:0; }
+  0%   { transform:scale(1);   opacity:.85; }
+  60%  { opacity:.18; }
+  100% { transform:scale(1.9); opacity:0; }
 }
 @keyframes hub-breathe {
-  0%, 100% { box-shadow:0 0 44px color-mix(in srgb, var(--series-2) 24%, transparent); }
-  50%      { box-shadow:0 0 62px color-mix(in srgb, var(--series-2) 42%, transparent); }
+  0%, 100% { box-shadow:0 0 40px color-mix(in srgb, var(--series-2) 30%, transparent); }
+  50%      { box-shadow:0 0 78px color-mix(in srgb, var(--series-2) 62%, transparent); }
 }
+/* Reduced motion still gets a lit ring — just no travel. Losing the effect
+   entirely made the mark look broken rather than calm. */
 @media (prefers-reduced-motion:reduce) {
-  .hub-portrait, .hub-portrait::before, .hub-portrait::after { animation:none; }
-  .hub-portrait::before, .hub-portrait::after { display:none; }
+  .hub-portrait { animation:none; box-shadow:0 0 52px color-mix(in srgb, var(--series-2) 40%, transparent); }
+  .hub-portrait::before, .hub-portrait::after, .hub-ripple { animation:none; opacity:.35; transform:none; }
+  .hub-portrait::after, .hub-ripple { display:none; }
 }
 .hub-head h1 { font-size:1.9rem; letter-spacing:-.02em; margin:0 0 2px; }
 .hub-role {
@@ -665,6 +676,87 @@ body.hub-mode .view { max-width:none; padding:0; }
 
 .hub-btn-primary { border-color:color-mix(in srgb, var(--series-2) 55%, var(--line)); }
 .hub-btn-primary .hub-ic { color:var(--series-2); font-size:1rem; }
+.hub-ic svg { display:block; }
+
+/* ---------- social icon row ---------- */
+.social-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.social-row a {
+  display:grid; place-items:center; width:38px; height:38px; border-radius:50%;
+  color:var(--text-secondary); border:1px solid var(--line);
+  background:var(--surface-1); text-decoration:none;
+  transition:color .14s, border-color .14s, transform .14s;
+}
+.social-row a:hover {
+  color:var(--series-2); border-color:var(--series-2); transform:translateY(-2px);
+}
+/* On a photographic header the row sits on the image, so it needs its own
+   contrast rather than the page surfaces. */
+.social-row-hero { justify-content:flex-start; margin-top:14px; }
+.social-row-hero a {
+  color:rgba(255,255,255,.9); border-color:rgba(255,255,255,.28);
+  background:rgba(0,0,0,.34); backdrop-filter:blur(6px);
+}
+.social-row-hero a:hover { color:#fff; border-color:#fff; background:rgba(0,0,0,.55); }
+.hub-head .social-row-hero { justify-content:center; }
+
+.powered {
+  display:block; width:100%; text-align:center; margin-top:8px;
+  font-size:.68rem; letter-spacing:.1em; color:var(--text-muted); text-decoration:none;
+}
+.powered:hover { color:var(--series-2); }
+
+/* ---------- bottom player dock ---------- */
+.pf-play-ic {
+  flex:none; opacity:0; color:var(--series-2); font-size:.8rem; transition:opacity .14s;
+}
+.pf-track:hover .pf-play-ic { opacity:1; }
+button.pf-track { border:0; background:none; font:inherit; cursor:pointer; text-align:left; }
+button.pf-dsp { cursor:pointer; background:none; font:inherit; }
+
+body.has-dock { padding-bottom:96px; }
+.pf-dock {
+  position:fixed; left:0; right:0; bottom:0; z-index:70;
+  background:color-mix(in srgb, var(--surface-1) 94%, transparent);
+  backdrop-filter:blur(14px); border-top:1px solid var(--line);
+  box-shadow:0 -10px 40px rgba(0,0,0,.45);
+}
+.pf-dock-inner {
+  max-width:960px; margin:0 auto; padding:10px 16px;
+  display:flex; align-items:center; gap:14px;
+}
+.pf-dock-video { width:148px; flex:none; aspect-ratio:16/9; border-radius:6px; overflow:hidden; background:#000; }
+.pf-dock-video iframe { width:100%; height:100%; border:0; display:block; }
+.pf-dock-meta { flex:1; min-width:0; }
+.pf-dock-meta strong { display:block; font-size:.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pf-dock-meta small { color:var(--text-muted); font-size:.78rem; }
+.pf-dock-actions { display:flex; gap:6px; flex:none; }
+.pf-dock-btn {
+  width:34px; height:34px; display:grid; place-items:center; border-radius:8px;
+  border:1px solid var(--line); background:var(--surface-2); color:var(--text-secondary);
+  font-size:.9rem; cursor:pointer; text-decoration:none;
+}
+.pf-dock-btn:hover { color:var(--series-2); border-color:var(--series-2); }
+
+/* ---------- lightbox ---------- */
+.pf-lightbox {
+  position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.88);
+  display:grid; place-items:center; padding:20px;
+}
+.pf-lightbox-frame { width:min(1000px, 100%); aspect-ratio:16/9; }
+.pf-lightbox-frame iframe { width:100%; height:100%; border:0; border-radius:10px; }
+.pf-lightbox-close {
+  position:absolute; top:16px; right:18px; width:42px; height:42px; border-radius:50%;
+  border:1px solid rgba(255,255,255,.3); background:rgba(0,0,0,.5); color:#fff;
+  font-size:1.1rem; cursor:pointer;
+}
+.pf-lightbox-close:hover { border-color:#fff; }
+
+@media (max-width:640px) {
+  .pf-dock-inner { padding:8px 12px; gap:10px; }
+  .pf-dock-video { width:96px; }
+  body.has-dock { padding-bottom:78px; }
+  .social-row a { width:40px; height:40px; }
+}
 
 @media (max-width:640px) {
   .pf-head { min-height:260px; padding:20px 16px; }

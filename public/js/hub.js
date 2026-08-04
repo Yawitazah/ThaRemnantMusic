@@ -8,6 +8,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
+import { socialRow, socialIcon, iconFor } from './icons.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -54,11 +55,6 @@ function track(artist, event, extra = {}) {
   }).catch(() => {});
 }
 
-const ICONS = {
-  youtube: 'YT', spotify: 'SP', 'apple music': 'AM', instagram: 'IG',
-  tiktok: 'TT', 'x / twitter': 'X', website: 'WWW', 'last.fm': 'FM',
-};
-const iconFor = label => ICONS[(label || '').toLowerCase()] || '↗';
 
 export async function boot(slug) {
   document.documentElement.dataset.theme = 'dark';   // hubs are a brand surface
@@ -107,6 +103,7 @@ export async function boot(slug) {
 <div class="hub">
   <header class="hub-head">
     <div class="hub-portrait">
+      <span class="hub-ripple" aria-hidden="true"></span>
       ${profile.image_url
         ? `<img src="${esc(profile.image_url)}" alt="${esc(a)}">`
         : profile.image_video_id
@@ -118,6 +115,8 @@ export async function boot(slug) {
     <p class="hub-role">${esc(profile.role || '')}</p>
     ${profile.tagline ? `<p class="hub-tagline">${esc(profile.tagline)}</p>` : ''}
     ${subs ? `<p class="hub-subs">${fmt(subs)} subscribers</p>` : ''}
+    ${socialRow(links.map(l => ({ label: l.label, url: l.url, id: l.id })),
+      { size: 20, cls: 'social-row social-row-hero' })}
   </header>
 
   <nav class="hub-links">
@@ -128,7 +127,7 @@ export async function boot(slug) {
     </a>
     ${links.map(l => `
       <a class="hub-btn" href="${esc(l.url)}" target="_blank" rel="noopener" data-link-id="${l.id}">
-        <span class="hub-ic">${esc(iconFor(l.label))}</span>
+        <span class="hub-ic">${socialIcon(iconFor(l.label, l.url), 18)}</span>
         <span>${esc(l.label)}${l.note ? `<small>${esc(l.note)}</small>` : ''}</span>
         <span class="hub-arrow">→</span>
       </a>`).join('')}
@@ -155,6 +154,8 @@ export async function boot(slug) {
   <footer class="hub-foot">
     <img src="/img/logo-mark-180.png" alt="">
     <span>Tha Remnant Music Group</span>
+    <a class="powered" href="https://zahbrandsolutions.com" target="_blank" rel="noopener"
+       data-label="Powered by Zah Brand Solutions">Powered by Zah Brand Solutions</a>
   </footer>
 </div>`;
 
