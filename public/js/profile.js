@@ -72,7 +72,7 @@ export async function boot(slug) {
   const a = profile.artist;
   const enc = encodeURIComponent(a);
 
-  const [links, releases, channels, tour, discovered, followerMap, catalog] = await Promise.all([
+  const [links, releases, channels, tour, discovered, followerMap, catalog, reachMap] = await Promise.all([
     sel('hub_links', `artist=eq.${enc}&active=eq.true&order=sort_order`),
     sel('releases', `artist=eq.${enc}&order=year.desc`),
     sel('channels', `artist_name=eq.${enc}&select=*`),
@@ -80,7 +80,9 @@ export async function boot(slug) {
     sel('discovered_on', `artist=eq.${enc}&order=sort_order`),
     rpc('follower_counts'),
     sel('catalog', 'select=*&order=views.desc'),
+    rpc('artist_reach'),
   ]);
+  const reach = reachMap[a];
 
   // Catalog rows carry short artist tags, not full names.
   const TAG = { BREED: 'breed', 'King Konnect': 'king', JayThaRealist: 'jay', Yawitazah: 'zah' }[a];
@@ -211,7 +213,15 @@ export async function boot(slug) {
     <div class="pf-about-body">
       ${profile.image_url ? `<img src="${esc(profile.image_url)}" alt="${esc(a)}" loading="lazy">` : ''}
       <div>
-        ${listeners ? `<p class="pf-about-stat"><strong>${fmt(listeners)}</strong> monthly listeners</p>` : ''}
+        ${reach ? `
+          <p class="pf-about-stat"><strong>${fmt(reach.reach)}</strong> combined reach</p>
+          <p class="muted sm">Number ${reach.rank} of ${reach.of} on the roster, counted across
+          ${reach.platforms.length} platform${reach.platforms.length === 1 ? '' : 's'}.</p>
+          <ul class="pf-reach">
+            ${reach.platforms.map(p => `<li><span>${esc(p.platform)}</span>
+              <strong>${fmt(p.value)}</strong> <small>${esc(p.metric || '')}</small></li>`).join('')}
+          </ul>` : ''}
+        ${listeners ? `<p class="muted sm">${fmt(listeners)} monthly listeners on Spotify.</p>` : ''}
         ${profile.world_rank ? `<p class="muted sm">${esc(profile.world_rank)}</p>` : ''}
         ${profile.hometown_rank ? `<p class="muted sm">${esc(profile.hometown_rank)}</p>` : ''}
         ${profile.tagline ? `<p class="pf-tagline">${esc(profile.tagline)}</p>` : ''}

@@ -667,6 +667,13 @@ body.hub-mode .view { max-width:none; padding:0; }
 .pf-about-body > div { flex:1; min-width:240px; }
 .pf-about-stat { font-size:1.15rem; margin:0 0 2px; }
 .pf-tagline { color:var(--text-secondary); font-size:1rem; margin:.7em 0; }
+.pf-reach { list-style:none; margin:12px 0 0; padding:0; }
+.pf-reach li {
+  display:flex; align-items:baseline; gap:8px; padding:6px 0;
+  border-bottom:1px solid var(--line); font-size:.86rem;
+}
+.pf-reach li span { flex:1; color:var(--text-secondary); }
+.pf-reach li small { color:var(--text-muted); font-size:.76rem; }
 .pf-socials { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
 .pf-socials a {
   font-size:.8rem; text-decoration:none; color:var(--text-secondary);
