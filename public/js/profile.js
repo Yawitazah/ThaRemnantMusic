@@ -8,7 +8,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
-import { socialRow } from './icons.js';
+import { socialRow, rollAll } from './icons.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -139,8 +139,8 @@ export async function boot(slug) {
       <span class="pf-verified">Tha Remnant Music Group</span>
       <h1>${esc(a)}</h1>
       <p class="pf-stats">
-        ${listeners ? `<strong>${fmt(listeners)}</strong> monthly listeners` : ''}
-        ${subs ? `${listeners ? ' · ' : ''}<strong>${fmt(subs)}</strong> subscribers` : ''}
+        ${listeners ? `<strong data-roll="${listeners}">${fmt(listeners)}</strong> monthly listeners` : ''}
+        ${subs ? `${listeners ? ' · ' : ''}<strong data-roll="${subs}">${fmt(subs)}</strong> subscribers` : ''}
         <span id="pf-followers">${followers ? ` · <strong>${fmt(followers)}</strong> followers` : ''}</span>
       </p>
       <div class="pf-actions">
@@ -214,7 +214,7 @@ export async function boot(slug) {
       ${profile.image_url ? `<img src="${esc(profile.image_url)}" alt="${esc(a)}" loading="lazy">` : ''}
       <div>
         ${reach ? `
-          <p class="pf-about-stat"><strong>${fmt(reach.reach)}</strong> combined reach</p>
+          <p class="pf-about-stat"><strong data-roll="${reach.reach}">${fmt(reach.reach)}</strong> combined reach</p>
           <p class="muted sm">Number ${reach.rank} of ${reach.of} on the roster, counted across
           ${reach.platforms.length} platform${reach.platforms.length === 1 ? '' : 's'}.</p>
           <ul class="pf-reach">
@@ -229,7 +229,6 @@ export async function boot(slug) {
         ${profile.role ? `<p class="muted sm">${esc(profile.role)}${profile.hometown ? ' · ' + esc(profile.hometown) : ''}</p>` : ''}
       </div>
     </div>
-    ${socialRow(links.map(l => ({ label: l.label, url: l.url, id: l.id })), { size: 22 })}
   </section>
 
   ${discovered.length ? `
@@ -275,6 +274,8 @@ export async function boot(slug) {
   <button class="pf-lightbox-close" id="pf-lightbox-close" type="button" aria-label="Close">✕</button>
   <div class="pf-lightbox-frame" id="pf-lightbox-frame"></div>
 </div>`;
+
+  rollAll(view);
 
   const seen = `pf-seen-${slug}`;
   if (!sessionStorage.getItem(seen)) { sessionStorage.setItem(seen, '1'); track(a, 'view'); }

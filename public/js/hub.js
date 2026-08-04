@@ -8,7 +8,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
-import { socialRow, socialIcon, iconFor } from './icons.js';
+import { socialRow, socialIcon, iconFor, isMusicLink, rollAll } from './icons.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -103,7 +103,6 @@ export async function boot(slug) {
 <div class="hub">
   <header class="hub-head">
     <div class="hub-portrait">
-      <span class="hub-ripple" aria-hidden="true"></span>
       ${profile.image_url
         ? `<img src="${esc(profile.image_url)}" alt="${esc(a)}">`
         : profile.image_video_id
@@ -114,7 +113,7 @@ export async function boot(slug) {
     <h1>${esc(a)}</h1>
     <p class="hub-role">${esc(profile.role || '')}</p>
     ${profile.tagline ? `<p class="hub-tagline">${esc(profile.tagline)}</p>` : ''}
-    ${subs ? `<p class="hub-subs">${fmt(subs)} subscribers</p>` : ''}
+    ${subs ? `<p class="hub-subs"><span data-roll="${subs}">${fmt(subs)}</span> subscribers</p>` : ''}
     ${socialRow(links.map(l => ({ label: l.label, url: l.url, id: l.id })),
       { size: 20, cls: 'social-row social-row-hero' })}
   </header>
@@ -125,7 +124,7 @@ export async function boot(slug) {
       <span>Artist profile<small>Popular tracks, releases, tour dates</small></span>
       <span class="hub-arrow">→</span>
     </a>
-    ${links.map(l => `
+    ${links.filter(l => isMusicLink(l.label, l.url)).map(l => `
       <a class="hub-btn" href="${esc(l.url)}" target="_blank" rel="noopener" data-link-id="${l.id}">
         <span class="hub-ic">${socialIcon(iconFor(l.label, l.url), 18)}</span>
         <span>${esc(l.label)}${l.note ? `<small>${esc(l.note)}</small>` : ''}</span>
@@ -160,6 +159,8 @@ export async function boot(slug) {
 </div>`;
 
   /* One view per session per artist — views read as people, not refreshes. */
+  rollAll(view);
+
   const seenKey = `hub-seen-${slug}`;
   if (!sessionStorage.getItem(seenKey)) {
     sessionStorage.setItem(seenKey, '1');

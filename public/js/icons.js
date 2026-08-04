@@ -36,6 +36,47 @@ export function socialIcon(name, size = 20) {
     aria-hidden="true" focusable="false"><path d="${d}"/></svg>`;
 }
 
+/* Where a link belongs. The icon row carries everywhere the artist can be
+   found; the big buttons are reserved for places you can actually hear them,
+   so the two lists never repeat each other. */
+const MUSIC = new Set(['youtube', 'spotify', 'apple', 'soundcloud']);
+export const isMusicLink = (label = '', url = '') => MUSIC.has(iconFor(label, url))
+  || /deezer|tidal|audiomack|bandcamp|amazon|pandora|boomplay/i.test(`${label} ${url}`);
+
+/* Count up to a number, so a figure lands rather than just appearing.
+   The markup already contains the real value — this only replays it from zero.
+   If anything here never runs (no observer callbacks in a background tab,
+   reduced motion, JS disabled), the correct figure is what stays on screen. */
+export function rollNumber(el, to, ms = 1100) {
+  if (!el || !isFinite(to)) return;
+  if (typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const start = performance.now();
+  const step = now => {
+    const p = Math.min(1, (now - start) / ms);
+    // ease-out: quick off the mark, settles onto the real figure
+    el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))).toLocaleString();
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/** Replay every [data-roll] inside `root` as it comes into view. */
+export function rollAll(root) {
+  const els = [...root.querySelectorAll('[data-roll]')];
+  if (!els.length) return;
+  const run = el => rollNumber(el, +el.dataset.roll);
+  if (!('IntersectionObserver' in window)) return els.forEach(run);
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (!en.isIntersecting) return;
+      run(en.target);
+      io.unobserve(en.target);
+    });
+  }, { threshold: .4 });
+  els.forEach(el => io.observe(el));
+}
+
 /** A single-colour row of social icons. `links` = [{label, url, id?}] */
 export function socialRow(links, { size = 20, cls = 'social-row' } = {}) {
   if (!links?.length) return '';

@@ -467,41 +467,42 @@ body.hub-mode .view { max-width:none; padding:0; }
   box-shadow:0 0 44px color-mix(in srgb, var(--series-2) 24%, transparent);
   animation:hub-breathe 4.5s ease-in-out infinite;
 }
+/* Two rings, half a cycle apart — enough to read as alive, not so much that it
+   pulls focus off the face. */
 .hub-portrait::before,
 .hub-portrait::after {
-  content:''; position:absolute; inset:-3px; border-radius:50%;
-  border:3px solid var(--series-2);
-  animation:hub-emanate 3s cubic-bezier(.2,.6,.35,1) infinite;
+  content:''; position:absolute; inset:-2px; border-radius:50%;
+  border:2px solid var(--series-2);
+  animation:hub-emanate 4s cubic-bezier(.25,.6,.35,1) infinite;
   pointer-events:none;
 }
-.hub-portrait::after { animation-delay:1.5s; }
-/* A third ring on the wrapper keeps the ripple continuous rather than a
-   pulse-pulse-pause. */
-.hub-ripple {
-  position:absolute; inset:-3px; border-radius:50%; pointer-events:none;
-  border:3px solid var(--series-2);
-  animation:hub-emanate 3s cubic-bezier(.2,.6,.35,1) infinite;
-  animation-delay:.75s;
-}
+.hub-portrait::after { animation-delay:2s; }
 .hub-portrait img {
   width:100%; height:100%; object-fit:cover; display:block;
   border-radius:50%; position:relative; z-index:1;
 }
 @keyframes hub-emanate {
-  0%   { transform:scale(1);   opacity:.85; }
-  60%  { opacity:.18; }
-  100% { transform:scale(1.9); opacity:0; }
+  0%   { transform:scale(1);    opacity:.5; }
+  70%  { opacity:.08; }
+  100% { transform:scale(1.45); opacity:0; }
 }
 @keyframes hub-breathe {
-  0%, 100% { box-shadow:0 0 40px color-mix(in srgb, var(--series-2) 30%, transparent); }
-  50%      { box-shadow:0 0 78px color-mix(in srgb, var(--series-2) 62%, transparent); }
+  0%, 100% { box-shadow:0 0 38px color-mix(in srgb, var(--series-2) 26%, transparent); }
+  50%      { box-shadow:0 0 58px color-mix(in srgb, var(--series-2) 44%, transparent); }
 }
-/* Reduced motion still gets a lit ring — just no travel. Losing the effect
-   entirely made the mark look broken rather than calm. */
+/* Many desktops run with system animation effects switched off, which is
+   reported as reduced-motion and previously removed this entirely. The travel
+   is what can bother people, not the glow — so keep a slow fade in place and
+   drop the outward movement. */
 @media (prefers-reduced-motion:reduce) {
-  .hub-portrait { animation:none; box-shadow:0 0 52px color-mix(in srgb, var(--series-2) 40%, transparent); }
-  .hub-portrait::before, .hub-portrait::after, .hub-ripple { animation:none; opacity:.35; transform:none; }
-  .hub-portrait::after, .hub-ripple { display:none; }
+  .hub-portrait::after { display:none; }
+  .hub-portrait::before {
+    animation:hub-glow 5s ease-in-out infinite; transform:none;
+  }
+}
+@keyframes hub-glow {
+  0%, 100% { opacity:.22; }
+  50%      { opacity:.6; }
 }
 .hub-head h1 { font-size:1.9rem; letter-spacing:-.02em; margin:0 0 2px; }
 .hub-role {
@@ -762,6 +763,9 @@ body.has-dock { padding-bottom:96px; }
   position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.88);
   display:grid; place-items:center; padding:20px;
 }
+/* display:grid above outranks the browser's [hidden] rule, which left the
+   lightbox covering the page from first paint. */
+.pf-lightbox[hidden], .pf-dock[hidden] { display:none; }
 .pf-lightbox-frame { width:min(1000px, 100%); aspect-ratio:16/9; }
 .pf-lightbox-frame iframe { width:100%; height:100%; border:0; border-radius:10px; }
 .pf-lightbox-close {
