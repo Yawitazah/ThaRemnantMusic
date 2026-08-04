@@ -19,8 +19,13 @@ body.label-mode #view { max-width:none; padding:0; margin:0; }
 /* ---------- scenes ----------
    Each section owns a plate that drifts against the scroll. --p runs from -1
    above the fold to 1 below it and is written by label.js. */
+/* inset:0, not a negative inset. Sections paint in DOM order, and each one
+   opens its own stacking context, so a plate that hung 14% above its section
+   painted solid black over the bottom of the section before it and sliced the
+   hero's buttons in half. The drift comes from the 1.16 scale inside the box
+   instead, which never leaves the section it belongs to. */
 .lb-scene {
-  position:absolute; inset:-14% 0; z-index:0; overflow:hidden;
+  position:absolute; inset:0; z-index:0; overflow:hidden;
   --p:0;
 }
 .lb-scene img {
@@ -95,9 +100,15 @@ body.lb-calm .reveal { transform:none; transition:opacity .4s linear; }
 .lb-btn.ghost { background:transparent; border-color:rgba(244,236,227,.34); color:var(--paper); }
 .lb-btn.ghost:hover { border-color:var(--paper); box-shadow:none; }
 
-.lb-scroll {
-  position:absolute; bottom:34px; left:50%; transform:translateX(-50%); z-index:1;
-  width:22px; height:36px; border:1.5px solid rgba(244,236,227,.3); border-radius:99px;
+/* On a short window the cue lands on top of the buttons, so it only appears
+   when the hero has room for it. */
+.lb-scroll { display:none; }
+@media (min-height:660px) {
+  .lb-scroll {
+    display:block;
+    position:absolute; bottom:34px; left:50%; transform:translateX(-50%); z-index:1;
+    width:22px; height:36px; border:1.5px solid rgba(244,236,227,.3); border-radius:99px;
+  }
 }
 .lb-scroll span {
   position:absolute; left:50%; top:8px; width:3px; height:7px; border-radius:2px;
