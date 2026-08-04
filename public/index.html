@@ -81,5 +81,38 @@
 <div id="tip" class="tip" hidden></div>
 
 <script type="module" src="/js/app.js"></script>
+<script>
+/* Boot watchdog. If the app module fails to load or parse — a half-finished
+   deploy, a stale service worker, a dropped connection — nothing inside it can
+   report that, and the page sits on "Loading label data" forever. This is
+   plain (non-module) script so it runs regardless, and offers the one action
+   that actually clears a wedged device. */
+(function () {
+  var WAIT = 12000;
+  setTimeout(function () {
+    var box = document.querySelector('#view .loading');
+    if (!box) return;   // the app booted and rendered — nothing to do
+    box.innerHTML =
+      '<img class="loading-mark" src="/img/logo-mark-180.png" alt="" style="animation:none;opacity:.5">' +
+      '<p style="margin:0 0 6px"><strong>This is taking longer than it should.</strong></p>' +
+      '<p class="sm" style="max-width:38ch;margin:0 auto 14px">Usually a bad connection or a half-loaded ' +
+      'copy of the app. Reset clears this device\'s stored copy and reloads. Nothing on the server changes.</p>' +
+      '<button class="btn" id="boot-reset" type="button">Reset and reload</button>';
+    document.getElementById('boot-reset').addEventListener('click', function () {
+      try { localStorage.clear(); sessionStorage.clear(); } catch (e) {}
+      var done = function () { location.replace('/?fresh=' + Date.now()); };
+      var jobs = [];
+      if (window.caches) jobs.push(caches.keys().then(function (k) {
+        return Promise.all(k.map(function (n) { return caches.delete(n); }));
+      }));
+      if (navigator.serviceWorker) jobs.push(
+        navigator.serviceWorker.getRegistrations().then(function (rs) {
+          return Promise.all(rs.map(function (r) { return r.unregister(); }));
+        }));
+      Promise.all(jobs).then(done, done);
+    });
+  }, WAIT);
+})();
+</script>
 </body>
 </html>

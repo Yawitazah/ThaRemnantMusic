@@ -111,6 +111,26 @@ function initBell() {
   }, 60_000);
 }
 
+/* Wipe every piece of state this device holds — stored session, service-worker
+   caches, the registration itself — then reload. The escape hatch for a device
+   stuck on a bad session or a stale offline copy. */
+export async function hardReset() {
+  try { await signOut(); } catch {}
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch {}
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+  } catch {}
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r => r.unregister()));
+  } catch {}
+  location.replace('/?fresh=' + Date.now());
+}
+
 /* ---------- team sign-in (footer) ---------- */
 
 function renderAuth() {
@@ -122,6 +142,7 @@ function renderAuth() {
   } else {
     el.innerHTML = `<a href="/join">Team sign-in / join</a>`;
   }
+  el.innerHTML += ` · <a href="#" id="auth-reset" title="Sign out, clear the offline copy and reload">Reset this device</a>`;
 }
 
 function initAuth() {
@@ -131,6 +152,11 @@ function initAuth() {
       await signOut();
       renderAuth(); draw();
       toast('Signed out');
+    }
+    if (e.target.id === 'auth-reset') {
+      e.preventDefault();
+      toast('Resetting this device…');
+      await hardReset();
     }
   });
   sb.auth.onAuthStateChange(async (_ev, session) => {
@@ -149,8 +175,17 @@ async function boot() {
   try {
     await loadAll();
 
-    syncEl.textContent = 'live';
-    syncEl.classList.add('ok');
+    // A partial load must announce itself — silently empty pages read as "the
+    // app is broken" with no clue why.
+    if (store.loadErrors?.length) {
+      syncEl.textContent = `${store.loadErrors.length} failed`;
+      syncEl.classList.add('err');
+      syncEl.title = store.loadErrors.join('\n');
+      console.warn('[data] failed to load:', store.loadErrors);
+    } else {
+      syncEl.textContent = 'live';
+      syncEl.classList.add('ok');
+    }
     const s = catalogStats();
     $('#foot-counts').textContent =
       `${s.total} tracks · ${store.playbook.length} playbook items · ${store.opps.length} opportunities`;
@@ -163,12 +198,16 @@ async function boot() {
     syncEl.classList.add('err');
     $('#view').innerHTML = `
       <section class="card">
-        <h2>Could not reach the database</h2>
-        <p class="err">${err.message}</p>
-        <p class="muted sm">Check that the Supabase project is running and that
-        <code>public/js/config.js</code> has the right URL and publishable key.</p>
-        <button class="btn" onclick="location.reload()">Retry</button>
+        <h2>Could not load the label data</h2>
+        <p class="err">${esc(err.message)}</p>
+        <p class="muted sm">If this keeps happening, reset this device — it signs you out,
+        clears the offline copy and reloads fresh. Nothing on the server is touched.</p>
+        <div class="row">
+          <button class="btn" onclick="location.reload()">Retry</button>
+          <button class="btn ghost" id="hard-reset" type="button">Reset this device</button>
+        </div>
       </section>`;
+    $('#hard-reset')?.addEventListener('click', hardReset);
   }
 }
 

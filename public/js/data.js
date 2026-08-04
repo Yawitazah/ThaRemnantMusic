@@ -27,6 +27,7 @@ export const store = {
   session: null,
   hub: {},        // per-artist link-hub analytics, from hub_summary()
   hubRecent: [],  // sanitised recent activity feed, from hub_recent()
+  loadErrors: [], // tables that failed this load, surfaced in the top bar
   isAdminUser: false,
   isTeam: false,  // admin or any claimed-invite account
   myArtist: null, // artist this signed-in account belongs to, if any
@@ -117,33 +118,63 @@ const TABLES = [
   ['releases',        'releases',         'sort_order'],
 ];
 
-export async function loadAll() {
-  const jobs = TABLES.map(([key, table, order]) => {
-    const [col, dir] = order.split('.');
-    return sb.from(table).select('*').order(col, { ascending: dir !== 'desc' })
-      .then(({ data, error }) => {
-        if (error) throw new Error(`${table}: ${error.message}`);
-        store[key] = data || [];
-      });
-  });
+/* A stale sign-in used to take the whole dashboard down: supabase-js sends the
+   stored access token instead of the anon key, and once that token is rejected
+   every table read fails with it. Detect that case and fall back to signed-out
+   reading rather than showing an empty app. */
+const isAuthFailure = msg => /jwt|token|expired|unauthor/i.test(msg || '');
 
-  jobs.push(
-    sb.from('settings').select('*').then(({ data, error }) => {
+async function readTable(key, table, order) {
+  const [col, dir] = order.split('.');
+  const { data, error } = await sb.from(table).select('*')
+    .order(col, { ascending: dir !== 'desc' });
+  if (error) throw new Error(`${table}: ${error.message}`);
+  store[key] = data || [];
+}
+
+export async function loadAll() {
+  // Auth is optional and must never hold the page hostage. Time-box it so a
+  // hung token refresh cannot leave everyone staring at "Loading label data".
+  await Promise.race([
+    initSession(),
+    new Promise(r => setTimeout(r, 6000)),
+  ]).catch(() => {});
+
+  const run = () => {
+    const jobs = TABLES.map(([key, table, order]) => () => readTable(key, table, order));
+    jobs.push(() => sb.from('settings').select('*').then(({ data, error }) => {
       if (error) throw new Error(`settings: ${error.message}`);
       store.settings = Object.fromEntries((data || []).map(r => [r.key, r.value]));
-    })
-  );
+    }));
+    return Promise.allSettled(jobs.map(j => j()));
+  };
+
+  let results = await run();
+  let failed = results.filter(r => r.status === 'rejected');
+
+  // Everything failed on an auth error → the session is the problem, not the
+  // database. Drop it and read as a signed-out visitor so the app still works.
+  if (failed.length === results.length && failed.some(f => isAuthFailure(f.reason?.message))) {
+    console.warn('[data] stored session rejected — continuing signed out');
+    await signOut();
+    results = await run();
+    failed = results.filter(r => r.status === 'rejected');
+  }
+
+  store.loadErrors = failed.map(f => f.reason?.message || String(f.reason));
+  // Only a total failure is fatal; a single bad table should not blank the app.
+  if (failed.length === results.length) {
+    throw new Error(store.loadErrors[0] || 'Could not load any label data.');
+  }
 
   // Link-hub analytics ride along but must never block the dashboard.
-  jobs.push(
-    sb.rpc('hub_summary').then(({ data }) => { store.hub = data || {}; }).catch(() => {}),
-    sb.rpc('hub_recent', { n: 40 }).then(({ data }) => { store.hubRecent = data || []; }).catch(() => {}),
+  await Promise.allSettled([
+    sb.rpc('hub_summary').then(({ data }) => { store.hub = data || {}; }),
+    sb.rpc('hub_recent', { n: 40 }).then(({ data }) => { store.hubRecent = data || []; }),
     sb.from('hub_links').select('*').order('sort_order')
-      .then(({ data }) => { store.hubLinks = data || []; }).catch(() => {}),
-    initSession(),
-  );
+      .then(({ data }) => { store.hubLinks = data || []; }),
+  ]);
 
-  await Promise.all(jobs);
   if (!store.settings.benchmarks) store.settings.benchmarks = FALLBACK_BENCHMARKS;
   return store;
 }

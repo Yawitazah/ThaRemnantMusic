@@ -14,14 +14,20 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
 
   if (req.mode === 'navigate') {
+    // Only the dashboard root is a valid offline shell. Hub pages (/a/{slug})
+    // and /join are server-personalised, so caching one of those under "/"
+    // would hand the wrong page back the next time the network dipped.
+    const isRoot = new URL(req.url).pathname === '/';
     e.respondWith(
       fetch(req)
         .then(res => {
-          const copy = res.clone();
-          caches.open(SHELL).then(c => c.put('/', copy)).catch(() => {});
+          if (isRoot && res.ok) {
+            const copy = res.clone();
+            caches.open(SHELL).then(c => c.put('/', copy)).catch(() => {});
+          }
           return res;
         })
-        .catch(() => caches.match('/'))
+        .catch(() => caches.match('/').then(hit => hit || Response.error()))
     );
   }
 });
