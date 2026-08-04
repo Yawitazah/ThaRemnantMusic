@@ -61,11 +61,18 @@ const SCENES = {
   releases: 'phone',
   roster:   'crown-nocross',
   popular:  'watch',
-  join:     'ashtray',
+  join:     'pendant',
 };
+
+/* Each plate is a short silent clip scrubbed by the scroll position, with the
+   still as its poster. The poster is what a phone, a slow connection or a
+   reduced-motion setting gets, and it is also the first paint everywhere, so
+   the section is never empty while the video loads. */
 const scene = key => `
   <div class="lb-scene" aria-hidden="true">
     <img src="/img/scenes/${SCENES[key]}.jpg" alt="" loading="lazy" decoding="async">
+    <video class="lb-scene-vid" data-scene="${SCENES[key]}" muted playsinline
+      preload="none" disablepictureinpicture></video>
   </div>`;
 
 const artThumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
@@ -87,14 +94,15 @@ export async function boot() {
 
   const view = document.getElementById('view');
 
-  const [profiles, releases, projects, catalog, channels, links, team] = await Promise.all([
+  /* Management is deliberately absent from this page. It is the artists' page,
+     and the label's staff belong in the Command Center, not in front of fans. */
+  const [profiles, releases, projects, catalog, channels, links] = await Promise.all([
     sel('artist_profiles', 'select=*&order=sort_order'),
     sel('releases', 'select=*&order=year.desc,sort_order'),
     sel('projects', 'select=*&order=priority'),
     sel('catalog', 'select=*&order=views.desc'),
     sel('channels', 'select=*'),
     sel('hub_links', 'select=*&active=eq.true&order=sort_order'),
-    sel('team_members', 'select=*&is_public=eq.true&order=sort_order'),
   ]);
 
   /* The same record is stored once per credited artist, so the label view has
@@ -251,30 +259,6 @@ export async function boot() {
     </div>
   </section>` : ''}
 
-  ${team.length ? `
-  <section class="lb-sec lb-team" id="lb-team">
-    <div class="lb-inner">
-      <span class="lb-eyebrow reveal">Behind the artists</span>
-      <h2 class="reveal">Management</h2>
-      ${team.map((m, i) => `
-        <article class="lb-member reveal" style="--d:${i * 80}ms">
-          ${m.image_url ? `<div class="lb-member-img"><img src="${esc(m.image_url)}" alt="${esc(m.name)}" loading="lazy"></div>` : ''}
-          <div class="lb-member-body">
-            <h3>${esc(m.name)}</h3>
-            <p class="lb-member-title">${esc(m.title)}${m.based ? ' · ' + esc(m.based) : ''}</p>
-            ${m.bio ? `<p class="lb-member-bio">${esc(m.bio)}</p>` : ''}
-            ${(m.highlights || []).length ? `<ul class="lb-member-list">
-              ${m.highlights.map(h => `<li>${esc(h)}</li>`).join('')}
-            </ul>` : ''}
-            ${(m.links || []).length ? `<div class="lb-dsps">
-              ${m.links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener"
-                 data-label="${esc(m.name + ' · ' + l.label)}">${esc(l.label)}</a>`).join('')}
-            </div>` : ''}
-          </div>
-        </article>`).join('')}
-    </div>
-  </section>` : ''}
-
   <section class="lb-sec lb-join" id="lb-join">
     ${scene('join')}
     <div class="lb-inner narrow">
@@ -370,7 +354,14 @@ function bindScroll(view) {
   sweep();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sweep(); });
 
+  /* Reduced motion switches off the things that move on their own: the drift,
+     the rotation, and letting a clip run once you stop scrolling. Scrubbing
+     stays, because the scroll IS the transport and the reader is driving every
+     frame of it. Killing it outright would leave still photographs on a page
+     built around them moving, and this machine reports reduced motion purely
+     because Windows animation effects are off. */
   const scenes = calm ? [] : [...view.querySelectorAll('.lb-scene')];
+  const film = bindFilm(view, { autoplayWhenIdle: !calm });
   let ticking = false;
   const frame = () => {
     ticking = false;
@@ -387,6 +378,7 @@ function bindScroll(view) {
     // Swept outside the animation frame on purpose: a background tab is served
     // no frames, and content that scrolled into view must still appear.
     sweep();
+    film?.scrolled();
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(frame);
@@ -394,6 +386,123 @@ function bindScroll(view) {
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll, { passive: true });
   frame();
+  // Clips finish loading after this runs, so nudge them onto the right frame
+  // once they are decodable instead of leaving them all on frame zero.
+  for (const v of view.querySelectorAll('.lb-scene-vid')) {
+    v.addEventListener('loadeddata', () => film?.settle(), { once: true });
+  }
+}
+
+/* ---------- scroll-driven film ----------
+   Each plate is a short silent clip. While you scroll, the scroll position is
+   the transport: the clip is scrubbed frame by frame as the section crosses the
+   screen. Stop scrolling and it takes over and plays on by itself, then pauses
+   again the moment you move.
+
+   Two things make this workable rather than a stutter:
+   the clips are re-encoded with a very short keyframe interval so seeking lands
+   quickly, and they are only fetched once their section is close to the screen.
+   Phones do not get them at all: seeking video is expensive, iOS will not
+   decode several at once, and the poster already carries the scene. */
+const FILM_MIN_WIDTH = 900;
+
+function bindFilm(view, { autoplayWhenIdle = true } = {}) {
+  const vids = [...view.querySelectorAll('.lb-scene-vid')];
+  if (!vids.length) return null;
+
+  const wanted = () => window.innerWidth >= FILM_MIN_WIDTH
+    && !matchMedia('(hover: none)').matches;
+
+  if (!wanted()) {
+    for (const v of vids) v.remove();
+    return null;
+  }
+
+  /* Loaded lazily so a visitor who never scrolls past the hero pays for one
+     clip. Armed from a direct viewport check rather than only an observer: a
+     background tab does not deliver observer callbacks reliably, and the clips
+     would never load at all. */
+  const arm = v => {
+    if (v.dataset.armed || !v.isConnected) return;
+    v.dataset.armed = '1';
+    v.src = `/img/scenes/${v.dataset.scene}.mp4`;
+    v.preload = 'auto';
+    v.load();
+    v.addEventListener('loadeddata', () => v.classList.add('ready'), { once: true });
+    // A clip that will not load is not worth chasing; the still stays.
+    v.addEventListener('error', () => v.remove(), { once: true });
+  };
+
+  const armNearby = () => {
+    const h = window.innerHeight;
+    for (const v of vids) {
+      if (v.dataset.armed || !v.isConnected) continue;
+      const r = v.getBoundingClientRect();
+      if (r.top < h * 2.2 && r.bottom > -h) arm(v);
+    }
+  };
+  armNearby();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) armNearby(); });
+
+  let idleTimer = 0;
+  let scrubbing = false;
+
+  const stopScrub = () => {
+    scrubbing = false;
+    if (!autoplayWhenIdle) return;
+    for (const v of vids) {
+      if (!v.isConnected || !v.duration) continue;
+      const r = v.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > window.innerHeight) continue;
+      v.play().catch(() => {});   // autoplay of a muted video is allowed
+    }
+  };
+
+  /* Seeking runs straight from the scroll event rather than inside an animation
+     frame. Scrubbing should track the finger with no frame of lag, and a
+     background tab is served no frames at all, which would leave every clip
+     frozen on its first frame. */
+  const clamp01 = n => Math.min(1, Math.max(0, n));
+  const first = vids[0], last = vids[vids.length - 1];
+
+  const scrub = () => {
+    const h = window.innerHeight;
+    for (const v of vids) {
+      if (!v.isConnected) continue;
+      const d = v.duration;
+      if (!d || !isFinite(d)) continue;
+      const r = v.getBoundingClientRect();
+      if (r.bottom < -100 || r.top > h + 100) continue;
+      if (!v.paused) v.pause();
+
+      /* Middle sections cross the whole screen, so their clip runs from the
+         moment they appear at the bottom to the moment they leave at the top.
+         The first and last sections never get that full pass: nothing is above
+         the first one and nothing below the last. They are measured against
+         their own height instead, so the hero starts on frame one at the top of
+         the page and the closing section finishes at the bottom. */
+      const p = v === first ? clamp01(-r.top / r.height)
+        : v === last ? clamp01((h - r.top) / r.height)
+        : clamp01((h - r.top) / (h + r.height));
+
+      const t = p * (d - 0.05);
+      if (Math.abs(v.currentTime - t) > 0.02) v.currentTime = t;
+    }
+  };
+
+  return {
+    scrolled() {
+      armNearby();
+      scrubbing = true;
+      scrub();
+      clearTimeout(idleTimer);
+      // Idle for a beat and the clips run on their own, which is the part that
+      // makes it feel alive rather than mechanical.
+      idleTimer = setTimeout(stopScrub, 320);
+    },
+    // Called once at boot so a clip that loads late lands on the right frame.
+    settle() { if (!scrubbing) scrub(); },
+  };
 }
 
 function bindCapture(view) {

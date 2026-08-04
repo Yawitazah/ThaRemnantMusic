@@ -11,6 +11,9 @@ let range = '28d'; // growth window: 7d | 28d | all
 /** Called by the router when the URL is #artists/<name>. */
 export function setArg(name) { if (name) current = name; }
 
+/** Which artist this tab is showing, so the topbar links can follow it. */
+export const currentArtist = () => current;
+
 const list = () => (store.profiles || []);
 
 const dsp = (url, label) => url

@@ -105,6 +105,7 @@ export const store = {
                { artist:'BREED', event:'play', label:'Ring The Alarm · YouTube', item:'Ring The Alarm', page:'profile', ref:null, at:'2026-08-02T11:59:30Z', sid:'a1b2' },
                { artist:'BREED', event:'view', label:null, item:null, page:'profile', ref:null, at:'2026-08-02T11:59:00Z', sid:'a1b2' } ],
   hubLinks: [ { id:1, artist:'BREED', label:'YouTube', url:'https://youtube.com/x', kind:'social', active:true, sort_order:10 } ],
+  team: [ { id:1, name:'Byron "Breakout" Davis', title:'Artist manager', short:'Manager.', bio:'Music executive and A&R.', highlights:['Founded BreakoutYear at 17','Interned at CAA'], based:'Atlanta', image_url:null, links:[], is_public:true, slug:'byron', sort_order:1 } ],
 };
 export const sb = { auth:{ getSession:async()=>({data:{session:null}}), signOut:async()=>{}, signInWithPassword:async()=>({data:{},error:null}), signInWithOtp:async()=>({data:{},error:null}), signUp:async()=>({data:{},error:null}), onAuthStateChange:()=>{} }, rpc:async()=>({data:null}), from:()=>({ select:()=>({ order:()=>({ limit:()=>({ then:f=>f({data:[]}) }), then:f=>f({data:[]}) }) }) }) };
 export let ADMIN = false;
@@ -153,7 +154,7 @@ for (const k of ['window', 'document', 'HTMLElement', 'Node', 'Event', 'CustomEv
 }
 globalThis.confirm = () => true;
 
-const TABS = ['now', 'artists', 'executive', 'diagnosis', 'roster', 'platforms', 'player', 'catalog', 'ledger', 'playbook', 'opps', 'budget', 'tracker', 'fans'];
+const TABS = ['now', 'artists', 'executive', 'diagnosis', 'roster', 'platforms', 'player', 'catalog', 'ledger', 'playbook', 'opps', 'budget', 'tracker', 'fans', 'team'];
 const data = await import(pathToFileURL(join(TMP, 'js', 'data.js')).href);
 
 let failed = 0;

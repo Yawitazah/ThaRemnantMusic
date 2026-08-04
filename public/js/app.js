@@ -5,6 +5,7 @@ import { $, toast, hideTip, esc } from './ui.js';
 
 import * as now       from './tabs/now.js';
 import * as artists   from './tabs/artists.js';
+
 import * as executive from './tabs/executive.js';
 import * as diagnosis from './tabs/diagnosis.js';
 import * as roster    from './tabs/roster.js';
@@ -17,8 +18,9 @@ import * as opps      from './tabs/opps.js';
 import * as budget    from './tabs/budget.js';
 import * as tracker   from './tabs/tracker.js';
 import * as fans      from './tabs/fans.js';
+import * as team      from './tabs/team.js';
 
-const TABS = { now, artists, executive, diagnosis, roster, platforms, player, catalog, ledger, playbook, opps, budget, tracker, fans };
+const TABS = { now, artists, executive, diagnosis, roster, platforms, player, catalog, ledger, playbook, opps, budget, tracker, fans, team };
 
 /* Routes look like #artists or #artists/BREED — the part after the slash is
    handed to the tab so a card on one page can open a specific record on another. */
@@ -53,6 +55,9 @@ function draw() {
   const act = bar?.querySelector('.tab.is-active');
   if (bar && act) bar.scrollLeft = act.offsetLeft - (bar.clientWidth - act.offsetWidth) / 2;
   history.replaceState(null, '', '#' + currentTab + (currentArg ? '/' + encodeURIComponent(currentArg) : ''));
+  // The topbar links follow whichever artist is on screen, so they are
+  // refreshed whenever the view changes.
+  renderAccount();
 }
 
 /* ---------- boot ---------- */
@@ -141,20 +146,31 @@ function renderAccount() {
   btn.classList.toggle('signed-in', !!store.session);
 
   const mine = myArtists();
-  const primary = store.myArtist || mine[0];
+  /* An admin's links follow whichever artist the Artists tab is showing, so the
+     buttons stay generic and always point at whoever is on screen. An artist
+     only ever has themselves. */
+  const primary = store.myArtist
+    || (mine.includes(artists.currentArtist()) ? artists.currentArtist() : mine[0]);
 
   // The two quick links in the bar itself, so the most common jumps are one
-  // click and do not need the menu opened at all.
+  // click and do not need the menu opened at all. Labels stay generic: naming
+  // one artist made them read as if they only worked for that artist.
   const quickHub = $('#nav-hub'), quickPage = $('#nav-page');
   if (primary && store.isTeam) {
     quickHub.href = `/a/${slugFor(primary)}`;
     quickPage.href = `/artist/${slugFor(primary)}`;
     quickHub.hidden = quickPage.hidden = false;
-    quickHub.textContent = isAdmin() ? `${primary} hub` : 'My hub';
-    quickPage.textContent = isAdmin() ? `${primary} page` : 'My page';
+    quickHub.title = `${primary} link hub`;
+    quickPage.title = `${primary} artist page`;
   } else {
     quickHub.hidden = quickPage.hidden = true;
   }
+
+  // The label page is public and meant to be shared, so it is offered to
+  // everyone, signed in or not.
+  const labelLink = `
+    <a class="acct-item" href="/label"><span class="acct-ic">◇</span>
+      <span>Label page<small>The public page for fans. Share this one.</small></span></a>`;
 
   if (!store.session) {
     panel.innerHTML = `
@@ -163,6 +179,7 @@ function renderAccount() {
         <span class="muted sm">Viewing the public dashboard.</span>
       </div>
       <div class="acct-group">
+        ${labelLink}
         <a class="acct-item" href="/join"><span class="acct-ic">→</span>
           <span>Team sign in or join<small>Artists and label staff</small></span></a>
       </div>`;
@@ -188,6 +205,7 @@ function renderAccount() {
       <span class="acct-label">Go to</span>
       <a class="acct-item is-here" href="/"><span class="acct-ic">◆</span>
         <span>Command Center<small>You are here</small></span></a>
+      ${labelLink}
       <a class="acct-item" id="acct-crm" href="${esc(crmSsoUrl())}" target="_blank" rel="noopener">
         <span class="acct-ic">◈</span>
         <span>ZAH CRM<small>Fans, campaigns and invoices. Opens signed in.</small></span></a>

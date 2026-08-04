@@ -429,9 +429,12 @@ a.proj:hover h4 { color:var(--series-2); }
 .nav-quick { white-space:nowrap; }
 .nav-quick[hidden] { display:none; }
 .acct { display:flex; align-items:center; gap:6px; padding-left:6px; padding-right:8px; }
+/* flex:none and a fixed basis, or the flex row squashes it into an oval. */
 .acct-avatar {
-  width:24px; height:24px; border-radius:50%; display:grid; place-items:center;
-  background:var(--surface-2); color:var(--text-muted); font-size:.74rem; font-weight:750;
+  flex:0 0 24px; width:24px; height:24px; min-width:24px; aspect-ratio:1;
+  border-radius:50%; display:grid; place-items:center;
+  background:var(--surface-2); color:var(--text-muted);
+  font-size:.74rem; font-weight:750; line-height:1;
 }
 .acct.signed-in .acct-avatar { background:var(--series-2); color:#fff; }
 .acct-panel {
@@ -596,6 +599,16 @@ body.hub-mode .view { max-width:none; padding:0; }
 .hub-capture form { display:flex; flex-direction:column; gap:9px; margin-top:12px; }
 .hub-capture .btn { background:var(--series-2); border-color:var(--series-2); font-weight:650; }
 .hub-capture-done { color:var(--good); font-weight:600; margin:14px 0 4px; }
+.hub-bio { margin:0 0 22px; }
+.hub-bio p { margin:0; color:var(--text-secondary); line-height:1.7; font-size:.93rem; }
+/* Track record on the Team tab. */
+.tm-list { list-style:none; margin:0; padding:0; display:grid; gap:7px; }
+.tm-list li { position:relative; padding-left:19px; font-size:.9rem; line-height:1.55; color:var(--text-secondary); }
+.tm-list li::before {
+  content:''; position:absolute; left:2px; top:.62em; width:6px; height:6px;
+  border-radius:50%; background:var(--series-2);
+}
+@media (min-width:760px) { .tm-list { grid-template-columns:1fr 1fr; column-gap:26px; } }
 .hub-disco h2 { font-size:1.05rem; margin-bottom:10px; }
 .hub-disco h3 {
   font-size:.76rem; text-transform:uppercase; letter-spacing:.09em;

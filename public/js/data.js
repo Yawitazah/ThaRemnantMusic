@@ -23,6 +23,7 @@ export const store = {
   projects: [],
   profiles: [],
   releases: [],
+  team: [],       // label staff who are not recording artists
   settings: {},
   session: null,
   hub: {},        // per-artist link-hub analytics, from hub_summary()
@@ -143,6 +144,7 @@ const TABLES = [
   ['projects',        'projects',         'sort_order'],
   ['profiles',        'artist_profiles',  'sort_order'],
   ['releases',        'releases',         'sort_order'],
+  ['team',            'team_members',     'sort_order'],
 ];
 
 /* A stale sign-in used to take the whole dashboard down: supabase-js sends the

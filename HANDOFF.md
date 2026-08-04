@@ -33,11 +33,27 @@ Everything a new session needs to continue. Written 2026-08-04.
 | Yawitazah | `/a/yawitazah` · `/artist/yawitazah` |
 
 `/label` = the audience-facing front door, added 2026-08-04. Hero, what is being
-pushed right now, latest releases, the roster, most played, Management, email
-capture. Ruddy dark Higgsfield plates that drift on scroll (`public/img/scenes/`).
-Deliberately carries **no internal numbers**. Still at `/label` rather than `/`
-because that call is Zah's; moving it is a three-line change in `server.js` and
-`app.js`.
+pushed right now, latest releases, the roster, most played, email capture.
+Deliberately carries **no internal numbers and no management** — this is the
+artists' page. Still at `/label` rather than `/` because that call is Zah's.
+
+**The plates are scroll-driven film.** Each section holds a still (`.jpg`) and a
+short silent clip (`.mp4`) in `public/img/scenes/`: bible pages turning,
+microphone, phone blinking, crown rotating, watch ticking, TR pendant on a chain.
+Scrolling scrubs the clip frame by frame; stop scrolling and it plays on by
+itself. Built in `bindFilm()` in `label.js`.
+- **The server must support HTTP byte ranges or none of this works.** Without a
+  206 response a browser reports the file unseekable, `video.seekable` is empty,
+  and assigning `currentTime` silently does nothing. `server.js` streams ranges
+  for `.mp4`/`.webm`.
+- Clips are encoded with a **very short keyframe interval** (`-g 8`) so seeking
+  lands fast, and are ~1MB each, loaded only when their section is near.
+- Phones and narrow windows get the still only; seeking video there is expensive
+  and iOS will not decode several at once.
+- Under `prefers-reduced-motion` the **drift, rotation and idle playback stop but
+  scrubbing stays**, because the reader is driving every frame of it. Killing it
+  outright would leave still photographs on a page built around them moving —
+  and Zah's own machine reports reduced motion.
 
 Hub = link-tree style. Profile = DSP-shaped (cover header, monthly listeners,
 Follow, Popular, Artist pick, discography, tour, About, bottom player dock).
@@ -73,9 +89,17 @@ code on step 2** → set-up screen (install app, notifications, CRM).
 | Byron "Breakout" Davis | `REMNANT-BYRON-3D8P` |
 | Spare team member | `REMNANT-TEAM-2J7V` |
 
-**Navigation exists now.** The topbar carries quick "My hub" and "My page" links
-plus an account menu (Command Center, ZAH CRM, the artist's own public pages, sign
-out). The Command Center and CRM entries render **only when `is_team()` is true**,
+**Byron "Breakout" Davis is management, not an artist.** He lives in the
+**Team tab** of the Command Center (profile, track record, hub growth, hub editor)
+and has his own link hub at **`/a/byron`**. He is deliberately absent from
+`/label`. `team_members` carries `slug` and `owner_email`; `is_team()` and
+`my_artist()` recognise a team member the same way they recognise an artist, so
+he can edit his own hub once he claims his code.
+
+**Navigation exists now.** The topbar carries quick "Link hub" and "Artist page"
+links (generic labels, targeting whichever artist the Artists tab is showing) plus
+an account menu (Command Center, Label page, ZAH CRM, the artist's own public
+pages, sign out). The Command Center and CRM entries render **only when `is_team()` is true**,
 so a fan never sees either. On `/a/{slug}` and `/artist/{slug}`, `teambar.js` adds
 a slim bar back to the Command Center — it confirms membership through the
 `is_team()` RPC rather than trusting a stored token, so a stale session in a

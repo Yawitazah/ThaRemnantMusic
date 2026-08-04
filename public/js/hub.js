@@ -62,10 +62,28 @@ export async function boot(slug) {
   document.documentElement.dataset.theme = 'dark';   // hubs are a brand surface
   const view = document.getElementById('view');
 
+  /* Hubs are not artists-only. Label staff get one too, so a slug that matches
+     no artist is checked against team_members before giving up. Their row is
+     reshaped into the same fields the rest of this page reads. */
   let profile;
   try {
     const profiles = await sel('artist_profiles', `slug=eq.${encodeURIComponent(slug)}&select=*`);
     profile = profiles[0];
+    if (!profile) {
+      const [member] = await sel('team_members',
+        `slug=eq.${encodeURIComponent(slug)}&is_public=eq.true&select=*`).catch(() => []);
+      if (member) {
+        profile = {
+          artist: member.name,
+          role: member.title,
+          tagline: member.short || null,
+          bio: member.bio || null,
+          image_url: member.image_url || null,
+          image_video_id: null,
+          is_team_member: true,
+        };
+      }
+    }
   } catch {
     view.innerHTML = '<div class="loading">Could not load this page. Try again in a minute.</div>';
     return;
@@ -122,12 +140,21 @@ export async function boot(slug) {
       { size: 20, cls: 'social-row social-row-hero' })}
   </header>
 
+  ${profile.is_team_member && profile.bio
+    ? `<section class="hub-bio"><p>${esc(profile.bio)}</p></section>` : ''}
+
   <nav class="hub-links">
+    ${profile.is_team_member ? `
+    <a class="hub-btn hub-btn-primary" href="/label">
+      <span class="hub-ic">★</span>
+      <span>Tha Remnant Music Group<small>The label, the artists, the music</small></span>
+      <span class="hub-arrow">→</span>
+    </a>` : `
     <a class="hub-btn hub-btn-primary" href="/artist/${esc(slug)}">
       <span class="hub-ic">★</span>
       <span>Artist profile<small>Popular tracks, releases, tour dates</small></span>
       <span class="hub-arrow">→</span>
-    </a>
+    </a>`}
     ${links.filter(l => isMusicLink(l.label, l.url)).map(l => `
       <a class="hub-btn" href="${esc(l.url)}" target="_blank" rel="noopener" data-link-id="${l.id}">
         <span class="hub-ic">${socialIcon(iconFor(l.label, l.url), 18)}</span>
@@ -144,14 +171,17 @@ export async function boot(slug) {
   </section>` : ''}
 
   <section class="hub-capture" id="hub-capture">
-    <h2>Stay in the loop</h2>
-    <p class="muted sm">New drops, videos and shows from ${esc(a)}. No spam.</p>
+    <h2>${profile.is_team_member ? 'Get in touch' : 'Stay in the loop'}</h2>
+    <p class="muted sm">${profile.is_team_member
+      ? `Leave your email and ${esc(a)} will get back to you.`
+      : `New drops, videos and shows from ${esc(a)}. No spam.`}</p>
     <form id="capture-form">
       <input type="text" name="name" placeholder="Name (optional)" autocomplete="name">
       <input type="email" name="email" placeholder="Email" required autocomplete="email">
-      <button class="btn" type="submit">Join the list</button>
+      <button class="btn" type="submit">${profile.is_team_member ? 'Send it' : 'Join the list'}</button>
     </form>
-    <p class="hub-capture-done" hidden>You're on the list. Welcome in.</p>
+    <p class="hub-capture-done" hidden>${profile.is_team_member
+      ? 'Got it. Expect a reply.' : "You're on the list. Welcome in."}</p>
   </section>
 
   <footer class="hub-foot">
@@ -214,7 +244,8 @@ ${dockMarkup()}`;
       form.hidden = true;
       document.querySelector('.hub-capture-done').hidden = false;
     } catch {
-      btn.disabled = false; btn.textContent = 'Join the list';
+      btn.disabled = false;
+      btn.textContent = profile.is_team_member ? 'Send it' : 'Join the list';
       alert('That did not go through. Please try again.');
     }
   });

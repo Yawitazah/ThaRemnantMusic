@@ -3,6 +3,7 @@
 // On Railway:   picked up automatically via `npm start`, binds process.env.PORT.
 
 import { createServer } from 'node:http';
+import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -110,8 +111,15 @@ const TYPES = {
   '.svg':  'image/svg+xml',
   '.png':  'image/png',
   '.jpg':  'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
   '.ico':  'image/x-icon',
+  '.mp4':  'video/mp4',
+  '.webm': 'video/webm',
 };
+
+// Media that the browser is allowed to seek inside.
+const RANGEABLE = new Set(['.mp4', '.webm']);
 
 // Optional: override the baked-in Supabase credentials with environment variables.
 const runtimeConfig = JSON.stringify({
@@ -255,20 +263,58 @@ const server = createServer(async (req, res) => {
       res.writeHead(403); return res.end('Forbidden');
     }
 
-    let body;
+    let info;
     try {
-      const s = await stat(file);
-      if (!s.isFile()) throw new Error('not a file');
-      body = await readFile(file);
+      info = await stat(file);
+      if (!info.isFile()) throw new Error('not a file');
     } catch {
       // SPA fallback
-      body = await readFile(join(ROOT, 'index.html'));
+      const body = await readFile(join(ROOT, 'index.html'));
       res.writeHead(200, { 'content-type': TYPES['.html'] });
       return res.end(body);
     }
 
     const ext = extname(file).toLowerCase();
     const type = TYPES[ext] || 'application/octet-stream';
+
+    /* Byte ranges, for video only.
+       Without this a browser reports the file as unseekable: `video.seekable`
+       stays empty and assigning `currentTime` silently does nothing, which is
+       exactly what broke the scroll-driven scenes on the label page. Streaming
+       the slice also keeps a multi-megabyte clip out of memory. */
+    if (RANGEABLE.has(ext)) {
+      const total = info.size;
+      const range = req.headers.range;
+      const m = range && /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+      if (m) {
+        let start = m[1] === '' ? null : Number(m[1]);
+        let end   = m[2] === '' ? null : Number(m[2]);
+        // "bytes=-500" means the last 500 bytes, not a range starting at zero.
+        if (start === null) { start = Math.max(0, total - (end || 0)); end = total - 1; }
+        if (end === null || end >= total) end = total - 1;
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= total) {
+          res.writeHead(416, { 'content-range': `bytes */${total}` });
+          return res.end();
+        }
+        res.writeHead(206, {
+          'content-type': type,
+          'content-length': end - start + 1,
+          'content-range': `bytes ${start}-${end}/${total}`,
+          'accept-ranges': 'bytes',
+          'cache-control': 'public, max-age=3600',
+        });
+        return createReadStream(file, { start, end }).pipe(res);
+      }
+      res.writeHead(200, {
+        'content-type': type,
+        'content-length': total,
+        'accept-ranges': 'bytes',
+        'cache-control': 'public, max-age=3600',
+      });
+      return createReadStream(file).pipe(res);
+    }
+
+    const body = await readFile(file);
     // Code (html/css/js) is always fetched fresh so every deploy is visible
     // immediately — at this size the bytes are trivial, and a 5-minute stale
     // window meant mismatched UI right after each push. Images may cache.

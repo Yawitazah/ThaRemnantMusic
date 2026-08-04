@@ -28,14 +28,23 @@ body.label-mode #view { max-width:none; padding:0; margin:0; }
   position:absolute; inset:0; z-index:0; overflow:hidden;
   --p:0;
 }
-.lb-scene img {
+.lb-scene img, .lb-scene-vid {
+  position:absolute; inset:0;
   width:100%; height:100%; object-fit:cover; display:block;
-  transform:translate3d(0, calc(var(--p) * -7%), 0) scale(1.16);
+  /* The rotation is what stops the drift reading as a flat slide. It is small
+     on purpose: past about a degree the crop corners start to show. */
+  transform:translate3d(0, calc(var(--p) * -7%), 0) rotate(calc(var(--p) * 0.9deg)) scale(1.2);
   will-change:transform;
   opacity:.62;
 }
+.lb-scene img { z-index:0; }
+/* The clip fades in over its own still once it can actually paint a frame, so
+   the swap is never a flash of black, and the still stays underneath as the
+   fallback if the video is removed. */
+.lb-scene-vid { z-index:1; opacity:0; transition:opacity .5s ease; pointer-events:none; }
+.lb-scene-vid.ready { opacity:.62; }
 .lb-scene::after {
-  content:''; position:absolute; inset:0;
+  content:''; position:absolute; inset:0; z-index:2;
   background:
     radial-gradient(120% 90% at 50% 40%, rgba(10,8,7,.25) 0%, rgba(10,8,7,.82) 62%, #0a0807 100%),
     linear-gradient(to bottom, #0a0807 0%, rgba(10,8,7,0) 22%, rgba(10,8,7,0) 74%, #0a0807 100%);
@@ -51,12 +60,12 @@ body.label-mode #view { max-width:none; padding:0; margin:0; }
 }
 /* Many desktops report reduced motion because animation effects are simply
    switched off in Windows. Drop the drift, keep the picture. */
-body.lb-calm .lb-scene img { transform:scale(1.06); }
+body.lb-calm .lb-scene img, body.lb-calm .lb-scene-vid { transform:scale(1.06); }
 /* The lit part of each plate sits low in the frame, and the top of the photo is
    the darkest part of the room. Pulling the crop down puts the light where the
    headline is rather than leaving the first screen almost black. */
-.lb-hero .lb-scene img { object-position:50% 72%; }
-.lb-sec .lb-scene img  { object-position:50% 62%; }
+.lb-hero .lb-scene img, .lb-hero .lb-scene-vid { object-position:50% 72%; }
+.lb-sec .lb-scene img,  .lb-sec .lb-scene-vid  { object-position:50% 62%; }
 
 /* ---------- reveal ---------- */
 .reveal {
