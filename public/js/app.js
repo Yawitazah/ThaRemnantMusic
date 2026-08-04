@@ -32,7 +32,13 @@ let { tab: currentTab, arg: currentArg } = parseHash();
 /* ---------- rendering ---------- */
 
 function draw() {
-  const view = $('#view');
+  // Tabs attach their click handlers with mount.addEventListener, so the
+  // mount must be a FRESH node every draw — reusing it stacks a new set of
+  // listeners per render, and any toggle handler then fires N times per
+  // click (an even N makes the button appear completely dead).
+  const old = $('#view');
+  const view = old.cloneNode(false);
+  old.replaceWith(view);
   const mod = TABS[currentTab];
   if (currentArg && mod.setArg) mod.setArg(currentArg);
   view.innerHTML = mod.render();
