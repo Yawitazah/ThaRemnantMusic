@@ -52,6 +52,11 @@ body.label-mode #view { max-width:none; padding:0; margin:0; }
 /* Many desktops report reduced motion because animation effects are simply
    switched off in Windows. Drop the drift, keep the picture. */
 body.lb-calm .lb-scene img { transform:scale(1.06); }
+/* The lit part of each plate sits low in the frame, and the top of the photo is
+   the darkest part of the room. Pulling the crop down puts the light where the
+   headline is rather than leaving the first screen almost black. */
+.lb-hero .lb-scene img { object-position:50% 72%; }
+.lb-sec .lb-scene img  { object-position:50% 62%; }
 
 /* ---------- reveal ---------- */
 .reveal {
