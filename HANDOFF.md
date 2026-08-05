@@ -9,7 +9,14 @@ Everything a new session needs to continue. Written 2026-08-04.
 **1. Label Command Center** — the dashboard + public artist pages.
 - Source: `D:\downloads\remnant-handoff\remnant-dashboard`
 - Repo: `Yawitazah/ThaRemnantMusic`, branch `main`
-- Live: https://command-center-production-cc6b.up.railway.app
+- Live: https://tharemnant.com (custom domain, added 2026-08-05) — also still on
+  https://command-center-production-cc6b.up.railway.app
+- Domain: registered at **GoDaddy**, DNS at **Cloudflare** (free plan, account
+  `zahbrandsolutions@gmail.com`). GoDaddy cannot put a CNAME on a bare domain, so
+  the nameservers point at `izabella.ns.cloudflare.com` / `trevor.ns.cloudflare.com`
+  and Cloudflare flattens the apex CNAME to Railway's `zpv9lj0u.up.railway.app`.
+  Both the apex and `www` are **proxied** (orange cloud), and SSL/TLS is pinned to
+  **Full** — Full (Strict) breaks Railway, so never "upgrade" it.
 - Railway project `tha-remnant-command-center`, service `command-center`, auto-deploys from `main` (~1 min)
 - Data: Supabase project `tha-remnant-command-center`, ref `upfqppdfckqehzgsosdi`
 - **At commit `9f034fd`, local = GitHub = deployed.**
@@ -26,16 +33,33 @@ Everything a new session needs to continue. Written 2026-08-04.
 
 | Page | URL |
 |---|---|
-| **Label landing page (fans)** | `/label` |
+| **Label landing page (fans)** | `/` (and `/label`, kept as an alias) |
+| **Command Center (team only)** | `/command` |
 | BREED | `/a/breed` · `/artist/breed` |
 | King Konnect | `/a/kingkonnect` · `/artist/kingkonnect` |
 | JayThaRealist | `/a/jay` · `/artist/jay` |
 | Yawitazah | `/a/yawitazah` · `/artist/yawitazah` |
 
-`/label` = the audience-facing front door, added 2026-08-04. Hero, what is being
+`/` = the audience-facing front door, added 2026-08-04. Hero, what is being
 pushed right now, latest releases, the roster, most played, email capture.
 Deliberately carries **no internal numbers and no management** — this is the
-artists' page. Still at `/label` rather than `/` because that call is Zah's.
+artists' page.
+
+**It moved from `/label` to `/` on 2026-08-05**, when tharemnant.com was connected,
+so that a fan typing the domain does not land on the budget and ledger. The
+Command Center moved to `/command`. Two rules came out of that move:
+- **`/command` is the ONLY path that serves the dashboard.** Everything
+  unrecognised falls through to the label page, so a typo or a stale link can
+  never expose internal numbers. Routing lives at the bottom of `app.js`.
+- **The internal title and description exist only on `/command`.** `index.html`
+  now ships the public copy as its default, because that default is what any
+  unrecognised path returns. Putting "budget and ledger" back in `index.html`
+  would leak it into the share preview for tharemnant.com itself.
+
+Anything that used to point at `/` for the dashboard had to move to `/command`:
+the account menu, `teambar.js`, the manifest `start_url`, the push notification
+URLs (`/command#fans`), the service worker offline shell, and both reset paths
+(which now reload `location.pathname` rather than `/`).
 
 **The plates are scroll-driven film.** Each section holds a still (`.jpg`) and a
 short silent clip (`.mp4`) in `public/img/scenes/`: bible pages turning,
@@ -131,7 +155,7 @@ code on step 2** → set-up screen (install app, notifications, CRM).
 **Byron "Breakout" Davis is management, not an artist.** He lives in the
 **Team tab** of the Command Center (profile, track record, hub growth, hub editor)
 and has his own link hub at **`/a/byron`**. He is deliberately absent from
-`/label`. `team_members` carries `slug` and `owner_email`; `is_team()` and
+`/`. `team_members` carries `slug` and `owner_email`; `is_team()` and
 `my_artist()` recognise a team member the same way they recognise an artist, so
 he can edit his own hub once he claims his code.
 
@@ -183,7 +207,7 @@ team. **No restyle. Neither option A nor B.** The whole team shares the single
 What was left was access, and that is now the CRM entry in the topbar account menu.
 
 ### 2. Data Zah still owes
-- **Byron Davis's social handles and a photo.** His card on `/label` has a portrait
+- **Byron Davis's social handles and a photo.** His card on `/` has a portrait
   slot the layout already supports, and no links. Web search only found a different
   company with a similar name, so nothing was attached rather than guessed.
 - **A portrait for King Konnect.** He is the only artist with no `image_url`, so his

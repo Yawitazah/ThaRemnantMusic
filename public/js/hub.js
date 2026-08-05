@@ -158,7 +158,7 @@ export async function boot(slug) {
 
   <nav class="hub-links">
     ${profile.is_team_member ? `
-    <a class="hub-btn hub-btn-primary" href="/label">
+    <a class="hub-btn hub-btn-primary" href="/">
       <span class="hub-ic">★</span>
       <span>Tha Remnant Music Group<small>The label, the artists, the music</small></span>
       <span class="hub-arrow">→</span>

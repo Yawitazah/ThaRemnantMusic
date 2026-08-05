@@ -93,7 +93,7 @@ What is left is access, not looks:
 | G2 | Invite code **`REMNANT-BYRON-3D8P`**, single use, `artist` null so he gets full team visibility and no artist page of his own | ✅ |
 | G3 | Socials | ❌ not found |
 
-His bio, nine career highlights and his base cities are live in the new **Management** section on `/label`.
+His bio, nine career highlights and his base cities are live in the new **Management** section on `/`.
 
 **Socials could not be confirmed.** The searches turned up a different company (Breakout Artist
 Management in Chesapeake VA, owned by someone else) and one possible `slideshare.net/breakoutyear`
@@ -105,10 +105,11 @@ supports.
 
 ## Decisions still open
 
-1. **Landing page URL.** It shipped at **`/label`**, which changes nothing for anyone already using the
-   Command Center at `/`. Moving the public page to `/` and the Command Center to `/command` is a
-   three-line change whenever you want it. Now is the cheapest moment, since none of the 6 invite
-   codes have been claimed.
+1. ~~**Landing page URL.**~~ **DECIDED and shipped 2026-08-05**, when tharemnant.com was connected.
+   The label page is now **`/`** (`/label` still resolves) and the Command Center is **`/command`**.
+   It turned out to be more than three lines: the account menu, `teambar.js`, the manifest
+   `start_url`, both push notification URLs, the service worker offline shell and both device-reset
+   paths all pointed at `/` meaning the dashboard. See HANDOFF.md for the two rules that came with it.
 2. **"Daily" definition.** Built as a **rolling last 24 hours**. Say so if you meant calendar day.
 3. **Spotify and Apple previews.** Confirmed on the real page: a signed-out visitor gets a **30 second
    preview** with a "Preview" badge, someone signed into that service gets the whole song. Their rule.

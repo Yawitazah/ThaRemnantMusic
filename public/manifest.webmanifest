@@ -2,7 +2,7 @@
   "name": "Tha Remnant Music Group — Label Command Center",
   "short_name": "Remnant",
   "description": "Live label dashboard: hubs, analytics, roster, catalog and weekly tracking.",
-  "start_url": "/",
+  "start_url": "/command",
   "scope": "/",
   "display": "standalone",
   "background_color": "#111110",

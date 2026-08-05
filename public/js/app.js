@@ -169,7 +169,7 @@ function renderAccount() {
   // The label page is public and meant to be shared, so it is offered to
   // everyone, signed in or not.
   const labelLink = `
-    <a class="acct-item" href="/label"><span class="acct-ic">◇</span>
+    <a class="acct-item" href="/"><span class="acct-ic">◇</span>
       <span>Label page<small>The public page for fans. Share this one.</small></span></a>`;
 
   if (!store.session) {
@@ -203,7 +203,7 @@ function renderAccount() {
 
     <div class="acct-group">
       <span class="acct-label">Go to</span>
-      <a class="acct-item is-here" href="/"><span class="acct-ic">◆</span>
+      <a class="acct-item is-here" href="/command"><span class="acct-ic">◆</span>
         <span>Command Center<small>You are here</small></span></a>
       ${labelLink}
       <a class="acct-item" id="acct-crm" href="${esc(crmSsoUrl())}" target="_blank" rel="noopener">
@@ -268,7 +268,8 @@ export async function hardReset() {
     const regs = await navigator.serviceWorker.getRegistrations();
     await Promise.all(regs.map(r => r.unregister()));
   } catch {}
-  location.replace('/?fresh=' + Date.now());
+  // Back to the page they were on, not "/" — that is the public label page now.
+  location.replace(location.pathname + '?fresh=' + Date.now());
 }
 
 /* ---------- team sign-in (footer) ---------- */
@@ -395,23 +396,28 @@ if ('serviceWorker' in navigator) {
 }
 
 /* Public artist hubs (/a/{slug}) and team onboarding (/join) share this bundle
-   but none of the dashboard chrome — they boot straight into standalone pages. */
+   but none of the dashboard chrome — they boot straight into standalone pages.
+
+   The dashboard answers ONE path, /command, and nothing else. Everything we do
+   not recognise falls through to the public label page, so a stray URL on
+   tharemnant.com shows fans the front door rather than the budget and ledger.
+   / is the label page; /label still works for links already in the wild. */
 const hubSlug = location.pathname.match(/^\/a\/([\w-]+)\/?$/)?.[1];
 const profileSlug = location.pathname.match(/^\/artist\/([\w-]+)\/?$/)?.[1];
 const isJoin = /^\/join\/?$/.test(location.pathname);
-const isLabel = /^\/label\/?$/.test(location.pathname);
-if (hubSlug || profileSlug || isJoin || isLabel) {
+const isCommand = /^\/command\/?$/.test(location.pathname);
+if (isCommand) {
+  initDashboard();
+} else {
   document.body.classList.add('hub-mode');
   const load = isJoin
     ? import('./join.js').then(m => m.boot())
-    : isLabel
-      ? import('./label.js').then(m => m.boot())
-      : profileSlug
-        ? import('./profile.js').then(m => m.boot(profileSlug.toLowerCase()))
-        : import('./hub.js').then(m => m.boot(hubSlug.toLowerCase()));
+    : profileSlug
+      ? import('./profile.js').then(m => m.boot(profileSlug.toLowerCase()))
+      : hubSlug
+        ? import('./hub.js').then(m => m.boot(hubSlug.toLowerCase()))
+        : import('./label.js').then(m => m.boot());
   load.catch(() => {
     $('#view').innerHTML = '<div class="loading">Could not load this page.</div>';
   });
-} else {
-  initDashboard();
 }

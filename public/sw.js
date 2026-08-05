@@ -4,7 +4,11 @@
 // Supabase, so a caching layer here would only get in the way. The one nicety:
 // when the network is down entirely, navigations get the last-seen app shell.
 
-const SHELL = 'remnant-shell-v1';
+// v2: the shell moved from "/" to "/command" when the label page took over the
+// root. The rename also retires any v1 cache still holding the old dashboard
+// HTML under "/", which would otherwise be served in place of the label page.
+const SHELL = 'remnant-shell-v2';
+const APP = '/command';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
@@ -14,20 +18,23 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
 
   if (req.mode === 'navigate') {
-    // Only the dashboard root is a valid offline shell. Hub pages (/a/{slug})
-    // and /join are server-personalised, so caching one of those under "/"
+    // Only the Command Center is a valid offline shell — it is what the installed
+    // app opens (manifest start_url). Hub pages (/a/{slug}), the label page and
+    // /join are server-personalised, so caching one of those under the shell key
     // would hand the wrong page back the next time the network dipped.
-    const isRoot = new URL(req.url).pathname === '/';
+    const isApp = new URL(req.url).pathname.replace(/\/$/, '') === APP;
     e.respondWith(
       fetch(req)
         .then(res => {
-          if (isRoot && res.ok) {
+          if (isApp && res.ok) {
             const copy = res.clone();
-            caches.open(SHELL).then(c => c.put('/', copy)).catch(() => {});
+            caches.open(SHELL).then(c => c.put(APP, copy)).catch(() => {});
           }
           return res;
         })
-        .catch(() => caches.match('/').then(hit => hit || Response.error()))
+        .catch(() => (isApp
+          ? caches.match(APP).then(hit => hit || Response.error())
+          : Response.error()))
     );
   }
 });
@@ -44,7 +51,7 @@ self.addEventListener('push', event => {
       icon: '/img/icon-192.png',
       badge: '/img/icon-192.png',
       tag: data.tag || 'remnant',
-      data: { url: data.url || '/' },
+      data: { url: data.url || APP },
     })
   );
 });
@@ -53,7 +60,7 @@ self.addEventListener('push', event => {
 // stacking up duplicate windows.
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const url = event.notification.data?.url || APP;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const client of list) {

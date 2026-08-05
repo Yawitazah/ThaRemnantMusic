@@ -64,7 +64,7 @@ async function pushRound() {
     const payload = JSON.stringify({
       title: `New fan for ${c.artist}`,
       body: `${c.name || c.email} just joined the list.`,
-      url: '/#fans',
+      url: '/command#fans',
       tag: 'fan-' + c.email,
     });
     await Promise.all(subs.map(async s => {
@@ -93,7 +93,7 @@ async function pushRound() {
 }
 
 setInterval(() => { pushRound().catch(e => console.error('[push]', e.message)); }, 60_000);
-const SITE = process.env.SITE_URL || 'https://command-center-production-cc6b.up.railway.app';
+const SITE = process.env.SITE_URL || 'https://tharemnant.com';
 
 const HUBS = {
   breed:       { name: 'BREED',         image: '/img/og-card.jpg' },
@@ -151,7 +151,7 @@ const server = createServer(async (req, res) => {
       const payload = JSON.stringify({
         title: 'Notifications are on',
         body: 'This is what a new fan will look like.',
-        url: '/#fans', tag: 'push-test',
+        url: '/command#fans', tag: 'push-test',
       });
       let sent = 0;
       await Promise.all(subs.map(async s => {
@@ -208,19 +208,30 @@ const server = createServer(async (req, res) => {
       return res.end(JSON.stringify({ ok }));
     }
 
-    // The public label page. Same shell, its own share preview, no dashboard.
-    if (/^\/label\/?$/.test(pathname)) {
-      const title = 'Tha Remnant Music Group';
-      const desc = 'Four artists, one catalogue. New records, videos and shows from '
-        + 'Tha Remnant Music Group.';
+    // The public label page is the front door: it answers / and the old /label.
+    // index.html already carries this copy, so only og:url varies by path.
+    if (/^\/(label\/?)?$/.test(pathname)) {
+      let html = await readFile(join(ROOT, 'index.html'), 'utf8');
+      html = html
+        .replace(/(property="og:image" content=")[^"]*/, `$1${SITE}/img/og-card.jpg`)
+        .replace(/(property="og:url" content=")[^"]*/, `$1${SITE}${pathname === '/' ? '/' : '/label'}`);
+      res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' });
+      return res.end(html);
+    }
+
+    // The Command Center. The one path that serves the internal dashboard, and
+    // the only place the internal title and description are used.
+    if (/^\/command\/?$/.test(pathname)) {
+      const title = 'Tha Remnant Music Group — Label Command Center';
+      const desc = 'Live label dashboard: roster, catalog, album ledger, 90-day '
+        + 'playbook, budget and weekly tracking.';
       let html = await readFile(join(ROOT, 'index.html'), 'utf8');
       html = html
         .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
         .replace(/(property="og:title" content=")[^"]*/, `$1${title}`)
         .replace(/(name="description" content=")[^"]*/, `$1${desc}`)
         .replace(/(property="og:description" content=")[^"]*/, `$1${desc}`)
-        .replace(/(property="og:image" content=")[^"]*/, `$1${SITE}/img/og-card.jpg`)
-        .replace(/(property="og:url" content=")[^"]*/, `$1${SITE}/label`);
+        .replace(/(property="og:url" content=")[^"]*/, `$1${SITE}/command`);
       res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' });
       return res.end(html);
     }

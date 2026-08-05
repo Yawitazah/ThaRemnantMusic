@@ -78,7 +78,7 @@ export async function mountTeamBar({ artist, slug, here }) {
   bar.innerHTML = `
     <span class="team-bar-who">Signed in as <strong>${esc(session.email || 'team')}</strong>
       · viewing ${esc(artist)}</span>
-    <a href="/#artists/${encodeURIComponent(artist)}">← Command Center</a>
+    <a href="/command#artists/${encodeURIComponent(artist)}">← Command Center</a>
     <a href="/a/${esc(slug)}"${here === 'hub' ? ' class="is-here"' : ''}>Link hub</a>
     <a href="/artist/${esc(slug)}"${here === 'profile' ? ' class="is-here"' : ''}>Artist page</a>
     <a href="https://zahcrm.com/sso/remnant?token=${encodeURIComponent(session.token)}"
