@@ -161,11 +161,12 @@ body.lb-calm .lb-scroll span { animation:none; opacity:1; }
 }
 .lb-inner.narrow { max-width:620px; text-align:center; align-items:center; }
 .lb-inner.narrow > * { width:100%; }
-/* A phone stacks the content tall enough to fill the section on its own, so the
-   extra scroll length would just be dead space under it. */
+/* Phones get a shorter hold than desktop, but every section must still clear
+   the same minimum or the content-light ones would run their whole clip in a
+   single flick while the long ones crawled. 165svh leaves 65svh of hold, which
+   is the figure SPAN in label.js is matched to. Change one and change both. */
 @media (max-width:760px) {
-  .lb-sec  { min-height:120svh; }
-  .lb-hero { min-height:135svh; }
+  .lb-sec, .lb-hero { min-height:165svh; }
   .lb-inner { min-height:0; padding:clamp(70px, 14vw, 110px) 20px; }
 }
 .lb-eyebrow {

@@ -58,12 +58,22 @@ itself. Built in `bindFilm()` in `label.js`.
   206 response a browser reports the file unseekable, `video.seekable` is empty,
   and assigning `currentTime` silently does nothing. `server.js` streams ranges
   for `.mp4`/`.webm`.
-- **Clips are encoded all-intra** (`-g 1`), 960x540 at 16fps, so every seek is a
-  direct frame fetch with no forward decoding. Measured in the page: median seek
-  **7.7ms against a 16.7ms frame budget**, down from 18.6ms at 720p/`-g 8`,
-  where seeks overran the budget and the scrub visibly stuttered. Counter-
-  intuitively the all-intra file is also *smaller*, because the scenes are dark
-  and low-detail. Do not "optimise" these back to a long GOP.
+- **Clips are encoded all-intra** (`-g 1`), 1280x720 at 18fps CRF 30 (phones get
+  854x480 CRF 33), so every seek is a direct frame fetch with no forward
+  decoding. Measured in the page: median seek **~12ms against a 16.7ms frame
+  budget**, against 18.6ms at `-g 8` where seeks overran the budget and the
+  scrub visibly stuttered. **Do not "optimise" these back to a long GOP** — it
+  looks like an obvious size win and it is what caused the stutter.
+- **Seek cost scales with pixel count, not file size.** 1280x720 CRF 27 seeks
+  faster than 1440x810 CRF 29 despite being the larger file. Resolution is the
+  lever for seek time; CRF is the lever for weight. 1280x720 is the ceiling that
+  still leaves frame-budget headroom.
+- **The clip maps to a capped slice of the hold, not all of it** (`SPAN` in
+  `label.js`). Section heights are content-driven and varied wildly: on a phone
+  one section gave the clip 3100px of scroll and another 162px, so the same
+  eight seconds crawled in one and vanished in a flick in the other. `SPAN` must
+  match the hold the stylesheet guarantees — 100svh desktop, 65svh mobile
+  (`min-height` 200svh / 165svh). **Change one and change both.**
 - **Scroll sets a target; an animation frame eases the playhead toward it.**
   A wheel scrolls in ~100px jumps, which is about a second of clip, so mapping
   scroll straight onto `currentTime` was a slide show no matter how well the

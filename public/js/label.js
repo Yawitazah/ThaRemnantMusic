@@ -538,8 +538,14 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
   let raf = 0;
   let rafProven = false;   // set once a frame has actually been delivered
 
+  /* How much scroll one clip is worth, as a fraction of the viewport. It has to
+     match the hold the stylesheet guarantees (min-height minus one screen), or
+     the sections that only just clear the minimum would animate faster than the
+     content-heavy ones that run far longer. Desktop guarantees 100svh of hold,
+     phones 65svh. */
   const measure = () => {
     const h = window.innerHeight;
+    const SPAN = small() ? 0.65 : 1;
     for (const v of vids) {
       if (!v.isConnected) continue;
       const d = v.duration;
@@ -559,15 +565,21 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
         eased.set(v, v.currentTime);
       }
 
-      /* The held stretch is exactly the scroll distance where the plate fills
-         the screen: from the section's top reaching the top of the viewport to
-         its bottom reaching the bottom. The clip runs across that and nothing
-         else, so it plays out in full while it is stationary and visible.
-         A section shorter than the viewport has no hold, so it falls back to
-         the plain crossing. */
+      /* The held stretch is the scroll distance where the plate fills the
+         screen: from the section's top reaching the top of the viewport to its
+         bottom reaching the bottom.
+
+         The clip is mapped to a CAPPED slice of that, not all of it, because
+         section heights are driven by their content and vary enormously. On a
+         phone the releases section ran 3100px while the closing section ran
+         162px, so the same eight seconds crawled in one and blew past in a
+         single flick in the other. Capping the span makes every scene animate
+         at the same speed; a long section simply finishes early and holds on
+         its last frame. */
       const hold = r.height - h;
-      const p = hold > 40
-        ? clamp01(-r.top / hold)
+      const span = Math.min(hold, h * SPAN);
+      const p = span > 40
+        ? clamp01(-r.top / span)
         : clamp01((h - r.top) / (h + r.height));
 
       target.set(v, p * (d - 0.05));
