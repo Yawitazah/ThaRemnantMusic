@@ -483,7 +483,11 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
     unlocked = true;
     for (const v of vids) {
       if (!v.dataset.armed) continue;
-      v.play().then(() => v.pause()).catch(() => {});
+      v.play().then(() => {
+        v.pause();
+        // The frame this presents is what lets the still be hidden.
+        v.closest('.lb-scene')?.classList.add('vid-on');
+      }).catch(() => {});
     }
   };
   addEventListener('touchstart', unlock, { once: true, passive: true });
@@ -497,10 +501,40 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
     v.load();
     v.addEventListener('loadeddata', () => {
       v.classList.add('ready');
-      if (unlocked) v.play().then(() => v.pause()).catch(() => {});
+      markPainting(v);
     }, { once: true });
     // A clip that will not load is not worth chasing; the still stays.
-    v.addEventListener('error', () => v.remove(), { once: true });
+    v.addEventListener('error', () => {
+      v.closest('.lb-scene')?.classList.remove('vid-on');
+      v.remove();
+    }, { once: true });
+  };
+
+  /* The still has to be HIDDEN once the clip takes over, not left underneath it.
+     Both layers are semi-transparent, so a visible still composites with the
+     video into a ghosted double exposure — a sharp 1920px frame smeared against
+     a soft 720p one, which is what made the plates look both doubled and
+     low-res. The still is still the fallback; it just cannot be co-visible.
+
+     It can only be hidden once the video is genuinely painting a frame.
+     `loadeddata` is not that promise on iOS, which refuses to paint a video that
+     has never played — hiding the still there would leave a black plate until the
+     first touch. So force exactly one frame out: the clips are muted and
+     playsinline, which is the case autoplay policy allows without a gesture, and a
+     play/pause round trip lands back on the same frame it started on.
+
+     Waiting passively for requestVideoFrameCallback is NOT enough on its own,
+     because a frame callback only fires when a frame is presented and under
+     reduced motion these clips never play by themselves — the plate would sit
+     doubled forever. rVFC stays as the corroborating signal where the round trip
+     is refused. */
+  const markPainting = v => {
+    const on = () => v.closest('.lb-scene')?.classList.add('vid-on');
+    if (typeof v.requestVideoFrameCallback === 'function') v.requestVideoFrameCallback(on);
+    v.play().then(() => { v.pause(); on(); }).catch(() => {
+      // Autoplay refused. The first touch unlocks it; until then keep the still.
+      if (unlocked) on();
+    });
   };
 
   /* Handing the decoder back matters more than the download saved. Dropping the
@@ -510,6 +544,8 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
     if (!v.dataset.armed) return;
     delete v.dataset.armed;
     v.classList.remove('ready');
+    // Hand the still back before the frame goes away, or the plate blanks.
+    v.closest('.lb-scene')?.classList.remove('vid-on');
     v.removeAttribute('src');
     v.load();
   };

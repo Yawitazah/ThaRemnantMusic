@@ -43,10 +43,28 @@ body.label-mode #view { max-width:none; padding:0; margin:0; }
 }
 .lb-scene img { z-index:0; }
 /* The clip fades in over its own still once it can actually paint a frame, so
-   the swap is never a flash of black, and the still stays underneath as the
-   fallback if the video is removed. */
+   the swap is never a flash of black, and the still stays as the fallback if the
+   video is released or removed. */
 .lb-scene-vid { z-index:1; opacity:0; transition:opacity .5s ease; pointer-events:none; }
 .lb-scene-vid.ready { opacity:.62; }
+
+/* Once the clip is genuinely painting (`vid-on`, set from requestVideoFrameCallback
+   in label.js) the still must go. Both layers are semi-transparent, so leaving it
+   underneath composited the two into a ghosted double exposure and made the plates
+   read as low-res. Cross-fade rather than cut, so the handover is invisible.
+
+   The video's own opacity then rises to what the two layers used to sum to, so
+   losing a layer does not darken a scene whose scrims were tuned against the
+   old brightness: hero was .62 over .62 (~.86 coverage), sections .62 over .44
+   (~.79). Change one of these and change its pair. */
+   Both contexts are spelled out on purpose. `.lb-sec .lb-scene img` below sets
+   .44 at the same specificity as a bare `.lb-scene.vid-on img`, and being later
+   in the file it would win — leaving every plate under the hero still doubled. */
+.lb-scene img { transition:opacity .5s ease; }
+.lb-hero .lb-scene.vid-on img,
+.lb-sec  .lb-scene.vid-on img { opacity:0; }
+.lb-hero .lb-scene.vid-on .lb-scene-vid.ready { opacity:.86; }
+.lb-sec  .lb-scene.vid-on .lb-scene-vid.ready { opacity:.79; }
 /* Tuned against the pinned plate, which now fills the whole screen rather than
    a short band. At the old strength a full-height plate read as almost black
    and the scene was invisible. */
