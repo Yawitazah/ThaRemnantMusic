@@ -233,5 +233,7 @@ export function initDock() {
     else if (!dock.hidden) close();
   });
 
-  return { play, close };
+  /* openLightbox is exposed because some things are not dock material. A music
+     video is the record itself, not background listening, so it opens big. */
+  return { play, close, lightbox: openLightbox, closeLightbox };
 }

@@ -10,7 +10,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
-import { SRC_NAME, playableArt, hydrateArt, dockMarkup, initDock } from './dock.js';
+import { SRC_NAME, ytId, playableArt, hydrateArt, dockMarkup, initDock } from './dock.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -127,6 +127,11 @@ export async function boot() {
       || { title: pushing.title, youtube_url: pushing.hero_video_id
              ? `https://www.youtube.com/watch?v=${pushing.hero_video_id}` : null });
 
+  /* The record being pushed is a music video, not a sleeve, so it gets its own
+     still at 16:9 and opens full size rather than in the little bottom bar. */
+  const nowVideoId = ytId(pushingRelease?.youtube_url) || pushing?.hero_video_id
+    || pushing?.art_video_id || '';
+
   const top = catalog.slice(0, 6);
   const reach = channels.reduce((s, c) => s + (c.subs || 0), 0);
 
@@ -190,13 +195,21 @@ export async function boot() {
       <span class="lb-eyebrow reveal">Right now</span>
       <div class="lb-now-grid">
         <div class="lb-now-art reveal">
-          ${playableArt({
-            title: pushing.title,
-            credited_to: pushing.artist,
-            youtube_url: pushingRelease?.youtube_url,
-            spotify_url: pushingRelease?.spotify_url,
-            apple_url: pushingRelease?.apple_url,
-          })}
+          ${nowVideoId ? `
+            <button class="lb-now-video" type="button" data-big="${esc(nowVideoId)}"
+              data-artist="${esc(pushing.artist)}" data-item="${esc(pushing.title)}"
+              aria-label="Play the ${esc(pushing.title)} music video">
+              <img src="${esc(bigArt(nowVideoId))}" alt=""
+                onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${esc(nowVideoId)}/hqdefault.jpg'">
+              <span class="lb-now-play" aria-hidden="true">▶</span>
+              <span class="lb-now-tag">Music video</span>
+            </button>`
+            : playableArt({
+                title: pushing.title,
+                credited_to: pushing.artist,
+                spotify_url: pushingRelease?.spotify_url,
+                apple_url: pushingRelease?.apple_url,
+              })}
         </div>
         <div class="lb-now-body reveal">
           <h2>${esc(pushing.title)}</h2>
@@ -303,9 +316,19 @@ ${dockMarkup()}`;
     }
   } catch { track(LABEL, 'view'); }
 
-  const { play } = initDock();
+  const { play, lightbox } = initDock();
 
   view.addEventListener('click', e => {
+    // The music video opens full size, not in the bottom bar.
+    const big = e.target.closest('[data-big]');
+    if (big) {
+      lightbox(big.dataset.big);
+      track(big.dataset.artist || LABEL, 'play', {
+        item: big.dataset.item || null,
+        label: `${big.dataset.item} · Music video`,
+      });
+      return;
+    }
     const playBtn = e.target.closest('[data-src][data-ref]');
     if (playBtn) {
       const { src, ref, title, credit, item, artist } = playBtn.dataset;
