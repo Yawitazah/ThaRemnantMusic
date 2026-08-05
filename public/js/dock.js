@@ -44,7 +44,7 @@ export const ytThumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
  * Releases with no video have no still, so the initial becomes the artwork and
  * stays just as clickable.
  */
-export const playableArt = (r, p = playableFor(r)) => `
+export const playableArt = (r, p = playableFor(r), q = {}) => `
   <div class="pf-rel-art"${r.spotify_url ? ` data-art-spotify="${esc(r.spotify_url)}"` : ''}${
     r.apple_url ? ` data-art-apple="${esc(r.apple_url)}"` : ''}>
     ${r.youtube_url && ytId(r.youtube_url)
@@ -53,9 +53,16 @@ export const playableArt = (r, p = playableFor(r)) => `
     ${p ? `<span class="pf-src-tag">${esc(SRC_NAME[p.src])}</span>
       <button class="pf-rel-play" type="button" data-src="${p.src}" data-ref="${esc(p.ref)}"
         data-title="${esc(r.title)}" data-credit="${esc(r.credited_to || r.kind || '')}"
-        data-item="${esc(r.title)}"
+        data-item="${esc(r.title)}"${q.queue ? ` data-queue="${esc(q.queue)}" data-qi="${q.index}"` : ''}
         aria-label="Play ${esc(r.title)}"><span aria-hidden="true">▶</span></button>` : ''}
   </div>`;
+
+/** Turn a list of releases into queue entries, skipping anything unplayable. */
+export const queueFrom = rows => (rows || []).map(r => {
+  const p = playableFor(r);
+  return p && { src: p.src, ref: p.ref, title: r.title,
+                credit: r.credited_to || r.kind || '', item: r.title };
+}).filter(Boolean);
 
 /* ---------- cover art ----------
    Only 10 of the 32 releases have a YouTube video, and the other 22 were
@@ -124,27 +131,49 @@ export function hydrateArt(root) {
   }
 }
 
-/** The dock and lightbox markup. Append once, near the end of the page. */
+/* ---------- the YouTube IFrame API ----------
+   A plain embed iframe cannot tell us when a track finished, which is the one
+   event a playlist is built on. The API gives us that, and it also lets one
+   player instance be reused for every track instead of tearing an iframe down
+   and building a new one between songs. */
+let ytApiPromise = null;
+function loadYouTubeApi() {
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve, reject) => {
+    if (window.YT?.Player) return resolve(window.YT);
+    const previous = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { previous?.(); resolve(window.YT); };
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    s.async = true;
+    s.onerror = () => reject(new Error('YouTube API blocked'));
+    document.head.appendChild(s);
+    // Blocked by an extension or an offline moment: fall back rather than hang.
+    setTimeout(() => reject(new Error('YouTube API timed out')), 8000);
+  });
+  return ytApiPromise;
+}
+
+/** The dock markup. Append once, near the end of the page. */
 export const dockMarkup = () => `
 <div class="pf-dock" id="pf-dock" hidden>
+  <button class="pf-dock-scrim" id="pf-dock-scrim" type="button" tabindex="-1" aria-label="Close the player"></button>
   <div class="pf-dock-inner">
-    <div class="pf-dock-video"><div id="pf-dock-frame"></div></div>
+    <div class="pf-dock-video"><div id="pf-dock-frame"><div id="pf-yt"></div></div></div>
     <div class="pf-dock-meta">
       <strong id="pf-dock-title"></strong>
       <small id="pf-dock-credit"></small>
+      <small class="pf-dock-next" id="pf-dock-next" hidden></small>
     </div>
     <div class="pf-dock-embed" id="pf-dock-embed"></div>
     <div class="pf-dock-actions">
+      <button class="pf-dock-btn" id="pf-dock-prev" type="button" title="Previous track" hidden>⏮</button>
+      <button class="pf-dock-btn" id="pf-dock-skip" type="button" title="Next track" hidden>⏭</button>
       <button class="pf-dock-btn" id="pf-dock-expand" type="button" title="Expand">⤢</button>
       <a class="pf-dock-btn" id="pf-dock-out" target="_blank" rel="noopener" title="Open on the platform">↗</a>
       <button class="pf-dock-btn" id="pf-dock-close" type="button" title="Close">✕</button>
     </div>
   </div>
-</div>
-
-<div class="pf-lightbox" id="pf-lightbox" hidden>
-  <button class="pf-lightbox-close" id="pf-lightbox-close" type="button" aria-label="Close">✕</button>
-  <div class="pf-lightbox-frame" id="pf-lightbox-frame"></div>
 </div>`;
 
 /**
@@ -152,88 +181,165 @@ export const dockMarkup = () => `
  * `play` answers true when the track opened in the dock and false when there
  * was nothing embeddable and the platform had to be opened in a new tab.
  */
-export function initDock() {
+export function initDock({ onTrack } = {}) {
   const dock = document.getElementById('pf-dock');
   const dockFrame = document.getElementById('pf-dock-frame');
   const dockEmbed = document.getElementById('pf-dock-embed');
-  const lightbox = document.getElementById('pf-lightbox');
-  const lightboxFrame = document.getElementById('pf-lightbox-frame');
-  if (!dock) return { play: () => false, close: () => {} };
+  if (!dock) return { play: () => false, close: () => {}, setQueue: () => false, lightbox: () => {} };
+
+  const $ = id => document.getElementById(id);
   let playing = null;
+  let queue = [];
+  let at = -1;
+  let yt = null;          // the one YouTube player, reused for every track
+  let ytBroken = false;   // API blocked: fall back to a plain embed
+
+  /* ---------- the queue ----------
+     A ranked list is a playlist. Clicking the third song should leave the rest
+     of the list queued behind it, and when a track ends the next one starts on
+     its own. Only YouTube reports the end of a track, so an auto-advance can
+     only follow a YouTube item; the skip controls cover the rest by hand. */
+  const current = () => queue[at] || playing;
+  const upNext = () => queue[at + 1] || null;
+
+  const paintQueue = () => {
+    const nextEl = $('pf-dock-next');
+    const n = upNext();
+    nextEl.textContent = n ? `Up next: ${n.title}` : '';
+    nextEl.hidden = !n;
+    $('pf-dock-prev').hidden = at < 1;
+    $('pf-dock-skip').hidden = !n;
+  };
 
   const ytFrame = (id, autoplay = 1) =>
-    `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=${autoplay}&rel=0"
+    `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=${autoplay}&rel=0&playsinline=1"
        title="Player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
-       allowfullscreen loading="lazy"></iframe>`;
+       allowfullscreen></iframe>`;
 
-  const frameFor = (src, ref) => {
-    if (src === 'youtube') return ytFrame(ref);
-    const url = src === 'spotify' ? spotifyEmbed(ref) : appleEmbed(ref);
-    if (!url) return null;
-    return `<iframe src="${esc(url)}" title="Player" loading="lazy"
-      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;
-  };
+  /* One player, created on the first track and reused after that: loading the
+     next song into it is instant, where a new iframe each time meant a visible
+     tear-down between songs. */
+  async function ensureYouTube() {
+    if (yt || ytBroken) return yt;
+    const YT = await loadYouTubeApi();
+    yt = await new Promise(resolve => {
+      const player = new YT.Player('pf-yt', {
+        host: 'https://www.youtube-nocookie.com',
+        playerVars: { autoplay: 1, rel: 0, playsinline: 1, modestbranding: 1 },
+        events: {
+          onReady: () => resolve(player),
+          onStateChange: e => { if (e.data === YT.PlayerState.ENDED) advance(1); },
+          onError: () => advance(1),   // a pulled video should not stall the list
+        },
+      });
+    });
+    return yt;
+  }
 
-  const close = () => {
-    dockFrame.innerHTML = '';        // clearing the iframe is what stops playback
+  const showYouTube = async (ref, title, credit) => {
     dockEmbed.innerHTML = '';
-    dock.hidden = true;
-    document.body.classList.remove('has-dock', 'has-dock-spotify', 'has-dock-apple');
-    playing = null;
+    $('pf-dock-title').textContent = title || '';
+    $('pf-dock-credit').textContent = credit || '';
+    $('pf-dock-out').href = `https://www.youtube.com/watch?v=${ref}`;
+    try {
+      const player = await ensureYouTube();
+      if (player) { player.loadVideoById(ref); return; }
+    } catch {
+      ytBroken = true;   // blocked or timed out
+    }
+    // No API: still play, just without knowing when the track ends.
+    dockFrame.innerHTML = ytFrame(ref);
   };
 
-  const play = (src, ref, title, credit) => {
-    const html = frameFor(src, ref);
-    if (!html) { window.open(ref, '_blank', 'noopener'); return false; }
-    playing = { src, ref, title, credit };
-    document.body.classList.remove('has-dock-spotify', 'has-dock-apple');
-    dock.dataset.src = src;
-    if (src === 'youtube') {
-      dockFrame.innerHTML = html;
-      dockEmbed.innerHTML = '';
-      document.getElementById('pf-dock-title').textContent = title || '';
-      document.getElementById('pf-dock-credit').textContent = credit || '';
-      document.getElementById('pf-dock-out').href = `https://www.youtube.com/watch?v=${ref}`;
-    } else {
-      // Spotify and Apple ship artwork, title and transport inside the embed,
-      // so repeating our own strip beside it would just be noise.
-      dockEmbed.innerHTML = html;
-      dockFrame.innerHTML = '';
-      document.getElementById('pf-dock-out').href = ref;
-      document.body.classList.add(`has-dock-${src}`);
-    }
-    document.getElementById('pf-dock-expand').hidden = src !== 'youtube';
-    dock.hidden = false;
-    document.body.classList.add('has-dock');
+  const showEmbed = (src, ref) => {
+    const url = src === 'spotify' ? spotifyEmbed(ref) : appleEmbed(ref);
+    if (!url) return false;
+    // Spotify and Apple ship artwork, title and transport inside the embed, so
+    // repeating our own strip beside it would just be noise.
+    if (yt) { try { yt.stopVideo(); } catch {} }
+    dockEmbed.innerHTML = `<iframe src="${esc(url)}" title="Player"
+      allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;
+    $('pf-dock-out').href = ref;
     return true;
   };
 
-  const openLightbox = id => {
-    lightboxFrame.innerHTML = ytFrame(id);
-    lightbox.hidden = false;
-    document.body.style.overflow = 'hidden';
+  const open = (src) => {
+    document.body.classList.remove('has-dock-spotify', 'has-dock-apple');
+    dock.dataset.src = src;
+    if (src !== 'youtube') document.body.classList.add(`has-dock-${src}`);
+    $('pf-dock-expand').hidden = src !== 'youtube';
+    dock.hidden = false;
+    document.body.classList.add('has-dock');
   };
-  const closeLightbox = () => {
-    lightboxFrame.innerHTML = '';
-    lightbox.hidden = true;
+
+  const playItem = (item) => {
+    if (!item) return false;
+    const { src, ref, title, credit } = item;
+    if (src === 'youtube') { showYouTube(ref, title, credit); }
+    else if (!showEmbed(src, ref)) { window.open(ref, '_blank', 'noopener'); return false; }
+    playing = item;
+    open(src);
+    paintQueue();
+    onTrack?.(item);
+    return true;
+  };
+
+  /* Step through the queue. Running off the end closes the player rather than
+     looping, so a listener is never trapped in it. */
+  const advance = (step) => {
+    const to = at + step;
+    if (to < 0 || to >= queue.length) { if (step > 0) close(); return; }
+    at = to;
+    playItem(queue[at]);
+  };
+
+  const close = () => {
+    if (yt) { try { yt.stopVideo(); } catch {} }
+    dockEmbed.innerHTML = '';
+    if (ytBroken) dockFrame.innerHTML = '';   // the fallback iframe has to go
+    dock.hidden = true;
+    dock.classList.remove('is-big');
+    document.body.classList.remove('has-dock', 'has-dock-spotify', 'has-dock-apple');
     document.body.style.overflow = '';
+    playing = null; queue = []; at = -1;
   };
 
-  document.getElementById('pf-dock-close').addEventListener('click', close);
-  document.getElementById('pf-dock-expand').addEventListener('click', () => {
-    if (!playing || playing.src !== 'youtube') return;
-    dockFrame.innerHTML = '';        // only one thing plays at a time
-    openLightbox(playing.ref);
-  });
-  document.getElementById('pf-lightbox-close').addEventListener('click', closeLightbox);
-  lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+  /** Play one thing, with nothing queued behind it. */
+  const play = (src, ref, title, credit) => {
+    queue = []; at = -1;
+    return playItem({ src, ref, title, credit });
+  };
+
+  /** Play `items[i]` and leave the rest of the list queued behind it. */
+  const setQueue = (items, i = 0) => {
+    queue = (items || []).filter(Boolean);
+    at = Math.max(0, Math.min(i, queue.length - 1));
+    return playItem(queue[at]);
+  };
+
+  /* Theatre mode is the same player at full size rather than a second one.
+     Moving an iframe in the DOM reloads it, which would restart the track and
+     drop the queue, so the dock simply grows instead. */
+  const big = (on) => {
+    dock.classList.toggle('is-big', on);
+    document.body.style.overflow = on ? 'hidden' : '';
+  };
+
+  $('pf-dock-close').addEventListener('click', close);
+  $('pf-dock-scrim').addEventListener('click', () => big(false));
+  $('pf-dock-expand').addEventListener('click', () => big(!dock.classList.contains('is-big')));
+  $('pf-dock-prev').addEventListener('click', () => advance(-1));
+  $('pf-dock-skip').addEventListener('click', () => advance(1));
   document.addEventListener('keydown', e => {
-    if (e.key !== 'Escape') return;
-    if (!lightbox.hidden) closeLightbox();
-    else if (!dock.hidden) close();
+    if (e.key !== 'Escape' || dock.hidden) return;
+    if (dock.classList.contains('is-big')) big(false); else close();
   });
 
-  /* openLightbox is exposed because some things are not dock material. A music
-     video is the record itself, not background listening, so it opens big. */
-  return { play, close, lightbox: openLightbox, closeLightbox };
+  /** Play one video full size. Used for a music video, which is not background listening. */
+  const lightbox = (id, title, credit) => {
+    play('youtube', id, title, credit);
+    big(true);
+  };
+
+  return { play, setQueue, close, lightbox, closeLightbox: () => big(false) };
 }

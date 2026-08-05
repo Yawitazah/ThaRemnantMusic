@@ -10,7 +10,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
-import { SRC_NAME, ytId, playableArt, hydrateArt, dockMarkup, initDock } from './dock.js';
+import { SRC_NAME, ytId, playableArt, playableFor, queueFrom, hydrateArt, dockMarkup, initDock } from './dock.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -133,11 +133,21 @@ export async function boot() {
     || pushing?.art_video_id || '';
 
   const top = catalog.slice(0, 6);
+
+  /* Both lists on this page are playlists: start anywhere and the rest follows. */
+  const playableNewest = newest.filter(r => playableFor(r));
+  const QUEUES = {
+    popular: top.map(t => ({
+      src: 'youtube', ref: t.video_id, title: t.title, credit: t.credit || '',
+      item: t.title, artist: artistOf(t),
+    })),
+    releases: queueFrom(playableNewest).map((q, i) => ({ ...q, artist: playableNewest[i].artist })),
+  };
   const reach = channels.reduce((s, c) => s + (c.subs || 0), 0);
 
-  const relCard = r => `
+  const relCard = (r, i) => `
     <article class="lb-rel" data-artist="${esc(r.artist)}">
-      ${playableArt(r)}
+      ${playableArt(r, undefined, { queue: 'releases', index: i })}
       <h3>${esc(r.title)}</h3>
       <p class="lb-rel-meta">${esc(r.artist)}${r.year ? ' · ' + r.year : ''}</p>
       <div class="lb-dsps">
@@ -239,7 +249,7 @@ export async function boot() {
       <span class="lb-eyebrow reveal">Out now</span>
       <h2 class="reveal">The latest from the label</h2>
       <div class="lb-grid">${newest.map((r, i) =>
-        `<div class="reveal" style="--d:${i * 60}ms">${relCard(r)}</div>`).join('')}</div>
+        `<div class="reveal" style="--d:${i * 60}ms">${relCard(r, playableNewest.indexOf(r))}</div>`).join('')}</div>
     </div>
   </section>` : ''}
 
@@ -267,7 +277,8 @@ export async function boot() {
             <span class="lb-rank">${String(i + 1).padStart(2, '0')}</span>
             <button class="lb-track" type="button" data-src="youtube" data-ref="${esc(t.video_id)}"
               data-title="${esc(t.title)}" data-credit="${esc(t.credit || '')}"
-              data-item="${esc(t.title)}" data-artist="${esc(artistOf(t))}">
+              data-item="${esc(t.title)}" data-artist="${esc(artistOf(t))}"
+              data-queue="popular" data-qi="${i}">
               <img src="${esc(artThumb(t.video_id))}" alt="" loading="lazy">
               <span class="lb-track-t">${esc(t.title)}<small>${esc(t.credit || '')}</small></span>
               <span class="lb-track-v">${fmt(t.views)} plays</span>
@@ -316,27 +327,34 @@ ${dockMarkup()}`;
     }
   } catch { track(LABEL, 'view'); }
 
-  const { play, lightbox } = initDock();
+  /* Recorded from the player, so a track the queue started on its own counts
+     the same as one somebody picked. */
+  const { play, setQueue, lightbox } = initDock({
+    onTrack: it => track(it.artist || LABEL, 'play', {
+      item: it.item || it.title || null,
+      label: `${it.title || it.item} · ${SRC_NAME[it.src] || it.src}`,
+    }),
+  });
 
   view.addEventListener('click', e => {
     // The music video opens full size, not in the bottom bar.
     const big = e.target.closest('[data-big]');
     if (big) {
-      lightbox(big.dataset.big);
-      track(big.dataset.artist || LABEL, 'play', {
-        item: big.dataset.item || null,
-        label: `${big.dataset.item} · Music video`,
-      });
+      lightbox(big.dataset.big, big.dataset.item, big.dataset.artist);
       return;
     }
     const playBtn = e.target.closest('[data-src][data-ref]');
     if (playBtn) {
-      const { src, ref, title, credit, item, artist } = playBtn.dataset;
-      const opened = play(src, ref, title, credit);
-      track(artist || LABEL, opened ? 'play' : 'click', {
-        item: item || title || null,
-        label: `${title || item} · ${SRC_NAME[src] || src}`,
-      });
+      const { src, ref, title, credit, item, artist, queue, qi } = playBtn.dataset;
+      const opened = queue && QUEUES[queue]?.length
+        ? setQueue(QUEUES[queue], +qi)
+        : play(src, ref, title, credit);
+      if (!opened) {
+        track(artist || LABEL, 'click', {
+          item: item || title || null,
+          label: `${title || item} · ${SRC_NAME[src] || src}`,
+        });
+      }
       return;
     }
     const labelled = e.target.closest('[data-label]');

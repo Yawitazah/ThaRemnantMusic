@@ -9,7 +9,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
 import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, rollAll } from './icons.js';
-import { SRC_NAME, playableArt, hydrateArt, dockMarkup, initDock } from './dock.js';
+import { SRC_NAME, playableArt, playableFor, queueFrom, hydrateArt, dockMarkup, initDock } from './dock.js';
 import { mountTeamBar } from './teambar.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
@@ -116,10 +116,16 @@ export async function boot(slug) {
     ? `<a class="hub-dsp" href="${esc(url)}" target="_blank" rel="noopener"
          data-item="${esc(r.title)}" data-label="${esc(`${r.title} · ${platform}`)}">${platform}</a>` : '';
 
+  /* The discography is a playlist: start on any record and the rest of that
+     list keeps going behind it. */
+  const playableOwn = own.filter(r => playableFor(r));
+  const playableFeats = feats.filter(r => playableFor(r));
+  const QUEUES = { own: queueFrom(playableOwn), feats: queueFrom(playableFeats) };
+
   /* Artwork plays in the dock, the platform buttons leave for the platform. */
-  const releaseRow = r => `
+  const releaseRow = (key, list) => r => `
     <li class="hub-release">
-      ${playableArt(r)}
+      ${playableArt(r, undefined, { queue: key, index: list.indexOf(r) })}
       <div class="hub-release-t">
         <strong>${esc(r.title)}</strong>
         <span class="muted sm">${esc(r.kind || '')}${r.year ? ' · ' + r.year : ''}${
@@ -175,8 +181,8 @@ export async function boot(slug) {
   ${releases.length ? `
   <section class="hub-disco">
     <h2>Music</h2>
-    ${own.length ? `<ul>${own.map(releaseRow).join('')}</ul>` : ''}
-    ${feats.length ? `<h3>Featured on</h3><ul>${feats.map(releaseRow).join('')}</ul>` : ''}
+    ${own.length ? `<ul>${own.map(releaseRow('own', playableOwn)).join('')}</ul>` : ''}
+    ${feats.length ? `<h3>Featured on</h3><ul>${feats.map(releaseRow('feats', playableFeats)).join('')}</ul>` : ''}
   </section>` : ''}
 
   <section class="hub-capture" id="hub-capture">
@@ -214,17 +220,27 @@ ${dockMarkup()}`;
   hydrateArt(view);
   mountTeamBar({ artist: a, slug, here: 'hub' });
 
-  const { play } = initDock();
+  /* Recorded from the player, so a track the queue started counts too. */
+  const { play, setQueue } = initDock({
+    onTrack: it => track(a, 'play', {
+      item: it.item || it.title || null,
+      label: `${it.title || it.item} · ${SRC_NAME[it.src] || it.src}`,
+    }),
+  });
 
   view.addEventListener('click', e => {
     const playBtn = e.target.closest('[data-src][data-ref]');
     if (playBtn) {
-      const { src, ref, title, credit, item } = playBtn.dataset;
-      const opened = play(src, ref, title, credit);
-      track(a, opened ? 'play' : 'click', {
-        item: item || title || null,
-        label: `${title || item} · ${SRC_NAME[src] || src}`,
-      });
+      const { src, ref, title, credit, item, queue, qi } = playBtn.dataset;
+      const opened = queue && QUEUES[queue]?.length
+        ? setQueue(QUEUES[queue], +qi)
+        : play(src, ref, title, credit);
+      if (!opened) {
+        track(a, 'click', {
+          item: item || title || null,
+          label: `${title || item} · ${SRC_NAME[src] || src}`,
+        });
+      }
       return;
     }
     const btn = e.target.closest('.hub-btn');

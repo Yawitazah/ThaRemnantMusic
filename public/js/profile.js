@@ -9,7 +9,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
 import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, rollAll } from './icons.js';
-import { SRC_NAME, ytThumb, playableArt, hydrateArt, dockMarkup, initDock } from './dock.js';
+import { SRC_NAME, ytThumb, playableArt, playableFor, queueFrom, hydrateArt, dockMarkup, initDock } from './dock.js';
 import { mountTeamBar } from './teambar.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
@@ -116,19 +116,36 @@ export async function boot(slug) {
          data-item="${esc(r.title)}" data-label="${esc(`${r.title} · ${label}`)}">${label}</a>`
     : '';
 
-  const releaseCard = r => `
+  /* Every list on the page is a playlist. Clicking one record leaves the rest
+     of its shelf queued behind it, so a listener who starts at the top keeps
+     going without touching anything. */
+  const QUEUES = {
+    popular: popular.map(t => ({
+      src: 'youtube', ref: t.video_id, title: t.title, credit: t.credit || '', item: t.title,
+    })),
+  };
+
+  const releaseCard = (key) => (r, i) => `
     <article class="pf-rel">
-      ${playableArt(r)}
+      ${playableArt(r, undefined, { queue: key, index: i })}
       <h4>${esc(r.title)}</h4>
       <p class="muted sm">${r.year || ''}${r.kind ? ' · ' + esc(r.kind) : ''}</p>
       <div class="pf-dsps">${dsp(r, 'Spotify', r.spotify_url)}${dsp(r, 'Apple', r.apple_url)}${dsp(r, 'YouTube', r.youtube_url)}</div>
     </article>`;
 
-  const shelf = (title, rows) => !rows.length ? '' : `
+  const shelf = (title, rows, key) => {
+    if (!rows.length) return '';
+    // The queue skips unplayable rows, so index by the playable list, not the
+    // rendered one, or a card would start the wrong song.
+    const playableRows = rows.filter(r => playableFor(r));
+    QUEUES[key] = queueFrom(playableRows);
+    const indexOf = r => playableRows.indexOf(r);
+    return `
     <section class="pf-section">
       <h2>${esc(title)}</h2>
-      <div class="pf-grid">${rows.map(releaseCard).join('')}</div>
+      <div class="pf-grid">${rows.map(r => releaseCard(key)(r, indexOf(r))).join('')}</div>
     </section>`;
+  };
 
   view.innerHTML = `
 <div class="profile">
@@ -167,7 +184,8 @@ export async function boot(slug) {
           <span class="pf-rank">${i + 1}</span>
           <button class="pf-track" type="button"
              data-src="youtube" data-ref="${esc(t.video_id)}" data-title="${esc(t.title)}"
-             data-credit="${esc(t.credit || '')}" data-item="${esc(t.title)}">
+             data-credit="${esc(t.credit || '')}" data-item="${esc(t.title)}"
+             data-queue="popular" data-qi="${i}">
             <img src="${esc(ytThumb(t.video_id))}" alt="" loading="lazy">
             <span class="pf-track-t">${esc(t.title)}<small>${esc(t.credit || '')}</small></span>
             <span class="pf-plays">${fmt(t.views)}</span>
@@ -190,10 +208,10 @@ export async function boot(slug) {
     </div>
   </section>` : ''}
 
-  ${shelf('Albums', albums)}
-  ${shelf('Singles and EPs', singles)}
-  ${shelf('More releases', otherOwn)}
-  ${shelf('Featuring ' + a, feats)}
+  ${shelf('Albums', albums, 'albums')}
+  ${shelf('Singles and EPs', singles, 'singles')}
+  ${shelf('More releases', otherOwn, 'more')}
+  ${shelf('Featuring ' + a, feats, 'feats')}
 
   ${tour.length ? `
   <section class="pf-section">
@@ -268,19 +286,31 @@ ${dockMarkup()}`;
   hydrateArt(view);
   mountTeamBar({ artist: a, slug, here: 'profile' });
 
-  const { play } = initDock();
+  /* Recorded from the player rather than from the click, so a track the queue
+     started on its own counts the same as one somebody picked. */
+  const { play, setQueue } = initDock({
+    onTrack: it => track(a, 'play', {
+      item: it.item || it.title || null,
+      label: `${it.title || it.item} · ${SRC_NAME[it.src] || it.src}`,
+    }),
+  });
 
   /* Playing is recorded as a play and leaving for a platform as a click, so
      the two never get averaged into one meaningless number. */
   view.addEventListener('click', e => {
     const playBtn = e.target.closest('[data-src][data-ref]');
     if (playBtn) {
-      const { src, ref, title, credit, item } = playBtn.dataset;
-      const opened = play(src, ref, title, credit);
-      track(a, opened ? 'play' : 'click', {
-        item: item || title || null,
-        label: `${title || item} · ${SRC_NAME[src] || src}`,
-      });
+      const { src, ref, title, credit, item, queue, qi } = playBtn.dataset;
+      // Starting inside a list leaves the rest of it queued behind.
+      const opened = queue && QUEUES[queue]?.length
+        ? setQueue(QUEUES[queue], +qi)
+        : play(src, ref, title, credit);
+      if (!opened) {
+        track(a, 'click', {
+          item: item || title || null,
+          label: `${title || item} · ${SRC_NAME[src] || src}`,
+        });
+      }
       return;
     }
     const link = e.target.closest('[data-link-id]');

@@ -858,6 +858,8 @@ body.has-dock { padding-bottom:96px; }
 }
 .pf-dock-video { width:148px; flex:none; aspect-ratio:16/9; border-radius:6px; overflow:hidden; background:#000; }
 .pf-dock-video iframe { width:100%; height:100%; border:0; display:block; }
+/* The API replaces #pf-yt with its own iframe, so both need to fill the box. */
+.pf-dock-video > div, .pf-dock-video > div > iframe { width:100%; height:100%; border:0; display:block; }
 .pf-dock-meta { flex:1; min-width:0; }
 .pf-dock-meta strong { display:block; font-size:.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pf-dock-meta small { color:var(--text-muted); font-size:.78rem; }
@@ -909,22 +911,34 @@ body.has-dock-apple   { padding-bottom:142px; }
 /* display:grid above outranks [hidden], same trap the lightbox fell into. */
 .pf-dock-btn[hidden] { display:none; }
 
-/* ---------- lightbox ---------- */
-.pf-lightbox {
-  position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.88);
+/* ---------- theatre mode ----------
+   The same player at full size, not a second one. Moving an iframe in the DOM
+   reloads it, which would restart the track and lose the queue, so the dock
+   grows in place instead. */
+.pf-dock[hidden] { display:none; }
+.pf-dock-scrim { display:none; }
+.pf-dock.is-big {
+  position:fixed; inset:0; z-index:95; background:rgba(0,0,0,.9);
+  backdrop-filter:blur(6px); border-top:0; box-shadow:none;
   display:grid; place-items:center; padding:20px;
 }
-/* display:grid above outranks the browser's [hidden] rule, which left the
-   lightbox covering the page from first paint. */
-.pf-lightbox[hidden], .pf-dock[hidden] { display:none; }
-.pf-lightbox-frame { width:min(1000px, 100%); aspect-ratio:16/9; }
-.pf-lightbox-frame iframe { width:100%; height:100%; border:0; border-radius:10px; }
-.pf-lightbox-close {
-  position:absolute; top:16px; right:18px; width:42px; height:42px; border-radius:50%;
-  border:1px solid rgba(255,255,255,.3); background:rgba(0,0,0,.5); color:#fff;
-  font-size:1.1rem; cursor:pointer;
+.pf-dock.is-big .pf-dock-scrim {
+  display:block; position:absolute; inset:0; border:0; background:none;
+  cursor:zoom-out; padding:0;
 }
-.pf-lightbox-close:hover { border-color:#fff; }
+.pf-dock.is-big .pf-dock-inner {
+  position:relative; z-index:1; flex-direction:column; align-items:stretch;
+  max-width:min(1100px, 100%); width:100%; gap:12px;
+}
+.pf-dock.is-big .pf-dock-video { width:100%; aspect-ratio:16/9; border-radius:12px; }
+.pf-dock.is-big .pf-dock-meta strong { font-size:1.05rem; white-space:normal; }
+.pf-dock.is-big .pf-dock-actions { justify-content:flex-end; }
+.pf-dock.is-big #pf-dock-expand { transform:rotate(180deg); }
+@media (max-width:640px) { .pf-dock.is-big { padding:12px; } }
+
+/* Queue controls and the up-next line. */
+.pf-dock-next { display:block; color:var(--series-2); font-size:.74rem; margin-top:2px; }
+.pf-dock-next[hidden] { display:none; }
 
 @media (max-width:640px) {
   .pf-dock-inner { padding:8px 12px; gap:10px; }
