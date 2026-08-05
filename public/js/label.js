@@ -516,7 +516,6 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
      background tab is served no frames at all, which would leave every clip
      frozen on its first frame. */
   const clamp01 = n => Math.min(1, Math.max(0, n));
-  const first = vids[0], last = vids[vids.length - 1];
 
   const scrub = () => {
     const h = window.innerHeight;
@@ -524,18 +523,24 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
       if (!v.isConnected) continue;
       const d = v.duration;
       if (!d || !isFinite(d)) continue;
-      const r = v.getBoundingClientRect();
+
+      /* Measured against the SECTION, never the video. The plate is sticky now,
+         so its own rect stops moving the moment it pins, and scrubbing off that
+         would freeze the clip on one frame for the whole hold. */
+      const sec = v.closest('.lb-sec, .lb-hero');
+      const r = (sec || v).getBoundingClientRect();
       if (r.bottom < -100 || r.top > h + 100) continue;
       if (!v.paused) v.pause();
 
-      /* Middle sections cross the whole screen, so their clip runs from the
-         moment they appear at the bottom to the moment they leave at the top.
-         The first and last sections never get that full pass: nothing is above
-         the first one and nothing below the last. They are measured against
-         their own height instead, so the hero starts on frame one at the top of
-         the page and the closing section finishes at the bottom. */
-      const p = v === first ? clamp01(-r.top / r.height)
-        : v === last ? clamp01((h - r.top) / r.height)
+      /* The held stretch is exactly the scroll distance where the plate fills
+         the screen: from the section's top reaching the top of the viewport to
+         its bottom reaching the bottom. The clip runs across that and nothing
+         else, so it plays out in full while it is stationary and visible.
+         A section shorter than the viewport has no hold, so it falls back to
+         the plain crossing. */
+      const hold = r.height - h;
+      const p = hold > 40
+        ? clamp01(-r.top / hold)
         : clamp01((h - r.top) / (h + r.height));
 
       const t = p * (d - 0.05);

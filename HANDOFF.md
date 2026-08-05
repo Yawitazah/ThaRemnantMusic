@@ -42,6 +42,18 @@ short silent clip (`.mp4`) in `public/img/scenes/`: bible pages turning,
 microphone, phone blinking, crown rotating, watch ticking, TR pendant on a chain.
 Scrolling scrubs the clip frame by frame; stop scrolling and it plays on by
 itself. Built in `bindFilm()` in `label.js`.
+- **The plate is PINNED (`position:sticky`) while you scroll its section.**
+  Travelling with the section, a clip left the screen long before it had played
+  and nobody ever saw the pages turn. Sections run `200svh`, so each clip plays
+  across one full viewport of scroll while the plate is stationary and
+  full-screen. `.lb-inner` pins with it so the scene holds together.
+- **`scrub()` measures the SECTION rect, never the video's.** The plate is
+  sticky, so its own rect stops moving the instant it pins and scrubbing off it
+  freezes the clip on one frame.
+- `.lb { overflow-x:clip }` is deliberate. `clip` does not create a scroll
+  container; `hidden` would, and sticky would silently stop working.
+- The scrims were re-tuned when the plates went full-height. At the old strength
+  a full-screen plate composited to almost black.
 - **The server must support HTTP byte ranges or none of this works.** Without a
   206 response a browser reports the file unseekable, `video.seekable` is empty,
   and assigning `currentTime` silently does nothing. `server.js` streams ranges

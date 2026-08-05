@@ -17,15 +17,19 @@ body.label-mode #view { max-width:none; padding:0; margin:0; }
 .lb h1, .lb h2, .lb h3 { letter-spacing:-.03em; }
 
 /* ---------- scenes ----------
-   Each section owns a plate that drifts against the scroll. --p runs from -1
-   above the fold to 1 below it and is written by label.js. */
-/* inset:0, not a negative inset. Sections paint in DOM order, and each one
-   opens its own stacking context, so a plate that hung 14% above its section
-   painted solid black over the bottom of the section before it and sliced the
-   hero's buttons in half. The drift comes from the 1.16 scale inside the box
-   instead, which never leaves the section it belongs to. */
+   Each section owns a plate, and the plate is PINNED while you scroll past it.
+   That is the whole point: travelling with the section, a clip left the screen
+   long before it had played, so nobody ever saw the pages turn. Sticky holds it
+   still and full-screen for the length of the section while the content moves
+   over it, and label.js maps the clip to exactly that held stretch.
+
+   height + the matching negative margin is what makes it pin without taking any
+   vertical space of its own, so the content still starts at the top of the
+   section. `overflow-x:clip` on .lb is deliberate rather than `hidden`: clip
+   does not create a scroll container, so sticky keeps working. */
 .lb-scene {
-  position:absolute; inset:0; z-index:0; overflow:hidden;
+  position:sticky; top:0; height:100svh; margin-bottom:-100svh;
+  z-index:0; overflow:hidden;
   --p:0;
 }
 .lb-scene img, .lb-scene-vid {
@@ -43,20 +47,23 @@ body.label-mode #view { max-width:none; padding:0; margin:0; }
    fallback if the video is removed. */
 .lb-scene-vid { z-index:1; opacity:0; transition:opacity .5s ease; pointer-events:none; }
 .lb-scene-vid.ready { opacity:.62; }
+/* Tuned against the pinned plate, which now fills the whole screen rather than
+   a short band. At the old strength a full-height plate read as almost black
+   and the scene was invisible. */
 .lb-scene::after {
   content:''; position:absolute; inset:0; z-index:2;
   background:
-    radial-gradient(120% 90% at 50% 40%, rgba(10,8,7,.25) 0%, rgba(10,8,7,.82) 62%, #0a0807 100%),
-    linear-gradient(to bottom, #0a0807 0%, rgba(10,8,7,0) 22%, rgba(10,8,7,0) 74%, #0a0807 100%);
+    radial-gradient(120% 95% at 50% 45%, rgba(10,8,7,.10) 0%, rgba(10,8,7,.52) 68%, rgba(10,8,7,.88) 100%),
+    linear-gradient(to bottom, #0a0807 0%, rgba(10,8,7,0) 16%, rgba(10,8,7,0) 84%, #0a0807 100%);
 }
 /* The hero can carry a bright plate because there is only a headline on it.
    Everything below holds artwork and small type, so the plate drops back and
    stays atmosphere rather than competing with the content. */
-.lb-sec .lb-scene img { opacity:.38; }
+.lb-sec .lb-scene img { opacity:.44; }
 .lb-sec .lb-scene::after {
   background:
-    radial-gradient(130% 100% at 50% 45%, rgba(10,8,7,.55) 0%, rgba(10,8,7,.9) 58%, #0a0807 100%),
-    linear-gradient(to bottom, #0a0807 0%, rgba(10,8,7,.35) 16%, rgba(10,8,7,.35) 80%, #0a0807 100%);
+    radial-gradient(130% 105% at 50% 45%, rgba(10,8,7,.34) 0%, rgba(10,8,7,.74) 62%, rgba(10,8,7,.94) 100%),
+    linear-gradient(to bottom, #0a0807 0%, rgba(10,8,7,.2) 12%, rgba(10,8,7,.2) 88%, #0a0807 100%);
 }
 /* Many desktops report reduced motion because animation effects are simply
    switched off in Windows. Drop the drift, keep the picture. */
@@ -76,13 +83,18 @@ body.lb-calm .lb-scene img, body.lb-calm .lb-scene-vid { transform:scale(1.06); 
 .reveal.in { opacity:1; transform:none; }
 body.lb-calm .reveal { transform:none; transition:opacity .4s linear; }
 
-/* ---------- hero ---------- */
-.lb-hero {
-  position:relative; min-height:100svh; display:grid; place-items:center;
+/* ---------- hero ----------
+   Taller than the fold so the plate has somewhere to stay pinned while the
+   opening clip plays out. The copy still fills exactly the first screen. */
+.lb-hero { position:relative; min-height:200svh; isolation:isolate; }
+/* align-items:center, or the flex column left-aligns the logo mark that
+   text-align used to centre. */
+.lb-hero-body {
+  position:sticky; top:0; z-index:1; margin:0 auto; max-width:820px;
+  min-height:100svh; display:flex; flex-direction:column;
+  justify-content:center; align-items:center;
   text-align:center; padding:clamp(48px, 9vh, 80px) 20px clamp(70px, 12vh, 110px);
-  isolation:isolate;
 }
-.lb-hero-body { position:relative; z-index:1; max-width:820px; }
 .lb-mark { width:66px; height:66px; margin-bottom:26px; opacity:.95; }
 .lb-hero h1 { margin:0 0 22px; line-height:.92; }
 /* Sized against the shorter axis as well, so a laptop with a short window does
@@ -136,10 +148,26 @@ body.lb-calm .reveal { transform:none; transition:opacity .4s linear; }
 }
 body.lb-calm .lb-scroll span { animation:none; opacity:1; }
 
-/* ---------- sections ---------- */
-.lb-sec { position:relative; padding:clamp(90px, 14vw, 170px) 20px; isolation:isolate; }
-.lb-inner { position:relative; z-index:1; max-width:1080px; margin:0 auto; }
-.lb-inner.narrow { max-width:620px; text-align:center; }
+/* ---------- sections ----------
+   Each one runs longer than the screen so its plate stays pinned for a stretch
+   while the clip plays. The content pins with it rather than sliding away, so
+   the whole scene holds together and then releases as one. */
+.lb-sec { position:relative; min-height:200svh; isolation:isolate; }
+.lb-inner {
+  position:sticky; top:0; z-index:1; max-width:1080px; margin:0 auto;
+  min-height:100svh; display:flex; flex-direction:column; justify-content:center;
+  align-items:stretch;
+  padding:clamp(70px, 10vw, 120px) 20px;
+}
+.lb-inner.narrow { max-width:620px; text-align:center; align-items:center; }
+.lb-inner.narrow > * { width:100%; }
+/* A phone stacks the content tall enough to fill the section on its own, so the
+   extra scroll length would just be dead space under it. */
+@media (max-width:760px) {
+  .lb-sec  { min-height:120svh; }
+  .lb-hero { min-height:135svh; }
+  .lb-inner { min-height:0; padding:clamp(70px, 14vw, 110px) 20px; }
+}
 .lb-eyebrow {
   display:block; font-size:.7rem; letter-spacing:.28em; text-transform:uppercase;
   font-weight:750; color:var(--ember-soft); margin-bottom:14px;
