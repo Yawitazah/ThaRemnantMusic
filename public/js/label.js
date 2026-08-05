@@ -405,50 +405,97 @@ function bindScroll(view) {
    screen. Stop scrolling and it takes over and plays on by itself, then pauses
    again the moment you move.
 
-   Two things make this workable rather than a stutter:
-   the clips are re-encoded with a very short keyframe interval so seeking lands
-   quickly, and they are only fetched once their section is close to the screen.
-   Phones do not get them at all: seeking video is expensive, iOS will not
-   decode several at once, and the poster already carries the scene. */
-const FILM_MIN_WIDTH = 900;
+   Three things make this workable rather than a stutter:
+   the clips carry a very short keyframe interval so a seek lands quickly, only
+   the sections near the screen are fetched, and everything further away is
+   released so its decoder is handed back.
+
+   Phones run it too, on a smaller cut of each clip. They are the reason for the
+   release step: iOS keeps only a small number of video elements decoding at
+   once, and six live ones would starve each other until nothing painted. */
+const SMALL = 900;
 
 function bindFilm(view, { autoplayWhenIdle = true } = {}) {
   const vids = [...view.querySelectorAll('.lb-scene-vid')];
   if (!vids.length) return null;
 
-  const wanted = () => window.innerWidth >= FILM_MIN_WIDTH
-    && !matchMedia('(hover: none)').matches;
-
-  if (!wanted()) {
+  /* The one case worth skipping. Someone on Data Saver or a 2G connection did
+     not ask to spend their allowance on background footage, and the still
+     already carries the scene. */
+  const conn = navigator.connection || {};
+  if (conn.saveData || /^(slow-)?2g$/.test(conn.effectiveType || '')) {
     for (const v of vids) v.remove();
     return null;
   }
 
-  /* Loaded lazily so a visitor who never scrolls past the hero pays for one
-     clip. Armed from a direct viewport check rather than only an observer: a
-     background tab does not deliver observer callbacks reliably, and the clips
-     would never load at all. */
+  // A 640px cut, about a third of the weight, for phones.
+  const small = () => window.innerWidth < SMALL;
+  let wasSmall = small();
+  const srcFor = v => `/img/scenes/${v.dataset.scene}${small() ? '-sm' : ''}.mp4`;
+
+  /* iOS will not paint a frame from a video that has never played, so a seek
+     alone leaves the poster showing. One muted play/pause on the first touch
+     unlocks it, and costs nothing anywhere else. */
+  let unlocked = false;
+  const unlock = () => {
+    if (unlocked) return;
+    unlocked = true;
+    for (const v of vids) {
+      if (!v.dataset.armed) continue;
+      v.play().then(() => v.pause()).catch(() => {});
+    }
+  };
+  addEventListener('touchstart', unlock, { once: true, passive: true });
+  addEventListener('pointerdown', unlock, { once: true, passive: true });
+
   const arm = v => {
     if (v.dataset.armed || !v.isConnected) return;
     v.dataset.armed = '1';
-    v.src = `/img/scenes/${v.dataset.scene}.mp4`;
+    v.src = srcFor(v);
     v.preload = 'auto';
     v.load();
-    v.addEventListener('loadeddata', () => v.classList.add('ready'), { once: true });
+    v.addEventListener('loadeddata', () => {
+      v.classList.add('ready');
+      if (unlocked) v.play().then(() => v.pause()).catch(() => {});
+    }, { once: true });
     // A clip that will not load is not worth chasing; the still stays.
     v.addEventListener('error', () => v.remove(), { once: true });
   };
 
+  /* Handing the decoder back matters more than the download saved. Dropping the
+     source is what lets a phone keep painting the section you are actually
+     looking at. The still underneath takes over while it is released. */
+  const release = v => {
+    if (!v.dataset.armed) return;
+    delete v.dataset.armed;
+    v.classList.remove('ready');
+    v.removeAttribute('src');
+    v.load();
+  };
+
   const armNearby = () => {
+    // Phones hold a tighter window: current section plus the next one.
+    const near = small() ? 1.2 : 2.2;
+    const far  = small() ? 2.0 : 4.0;
     const h = window.innerHeight;
     for (const v of vids) {
-      if (v.dataset.armed || !v.isConnected) continue;
+      if (!v.isConnected) continue;
       const r = v.getBoundingClientRect();
-      if (r.top < h * 2.2 && r.bottom > -h) arm(v);
+      if (r.top < h * near && r.bottom > -h * near) arm(v);
+      else if (r.top > h * far || r.bottom < -h * far) release(v);
     }
   };
   armNearby();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) armNearby(); });
+
+  // Crossing the phone/desktop line mid-session means every clip is the wrong
+  // cut. Drop them all and let the next sweep fetch the right one.
+  addEventListener('resize', () => {
+    if (small() === wasSmall) return;
+    wasSmall = small();
+    for (const v of vids) release(v);
+    armNearby();
+  }, { passive: true });
 
   let idleTimer = 0;
   let scrubbing = false;
@@ -457,7 +504,7 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
     scrubbing = false;
     if (!autoplayWhenIdle) return;
     for (const v of vids) {
-      if (!v.isConnected || !v.duration) continue;
+      if (!v.isConnected || !v.dataset.armed || !v.duration) continue;
       const r = v.getBoundingClientRect();
       if (r.bottom < 0 || r.top > window.innerHeight) continue;
       v.play().catch(() => {});   // autoplay of a muted video is allowed

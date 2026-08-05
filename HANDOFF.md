@@ -48,8 +48,15 @@ itself. Built in `bindFilm()` in `label.js`.
   for `.mp4`/`.webm`.
 - Clips are encoded with a **very short keyframe interval** (`-g 8`) so seeking
   lands fast, and are ~1MB each, loaded only when their section is near.
-- Phones and narrow windows get the still only; seeking video there is expensive
-  and iOS will not decode several at once.
+- **Phones run it too**, on a 640px `-sm.mp4` cut (~300KB each). What makes that
+  safe is the **release step**: any clip more than ~2 viewports away has its
+  `src` dropped and `load()` called, handing the decoder back. iOS keeps only a
+  few video elements decoding at once, and six live ones starve each other until
+  nothing paints. At most three are ever armed.
+- **iOS will not paint a frame from a video that has never played**, so a seek
+  alone leaves the poster up. One muted `play()`/`pause()` on the first touch
+  unlocks it.
+- Skipped entirely only on **Data Saver or a 2G connection**.
 - Under `prefers-reduced-motion` the **drift, rotation and idle playback stop but
   scrubbing stays**, because the reader is driving every frame of it. Killing it
   outright would leave still photographs on a page built around them moving —
