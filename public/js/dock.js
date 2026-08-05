@@ -157,6 +157,7 @@ function loadYouTubeApi() {
 /** The dock markup. Append once, near the end of the page. */
 export const dockMarkup = () => `
 <div class="pf-dock" id="pf-dock" hidden>
+  <canvas class="pf-dock-fx" id="pf-dock-fx" aria-hidden="true"></canvas>
   <button class="pf-dock-scrim" id="pf-dock-scrim" type="button" tabindex="-1" aria-label="Close the player"></button>
   <div class="pf-dock-inner">
     <div class="pf-dock-video"><div id="pf-dock-frame"><div id="pf-yt"></div></div></div>
@@ -299,6 +300,7 @@ export function initDock({ onTrack } = {}) {
     if (ytBroken) dockFrame.innerHTML = '';   // the fallback iframe has to go
     dock.hidden = true;
     dock.classList.remove('is-big');
+    fxStop();   // defined below; only ever called after init completes
     document.body.classList.remove('has-dock', 'has-dock-spotify', 'has-dock-apple');
     document.body.style.overflow = '';
     playing = null; queue = []; at = -1;
@@ -317,12 +319,109 @@ export function initDock({ onTrack } = {}) {
     return playItem(queue[at]);
   };
 
+  /* ---------- the light ring ----------
+     Rings of small ember lights orbiting the player in theatre mode, swelling
+     and settling like they are listening. Honest note on the "with the music"
+     part: the audio lives inside YouTube's iframe on another origin, so the
+     real waveform is unreachable — this is a pulse built from layered waves
+     tuned to feel like a beat, which is what every site does over an embed.
+
+     It draws nothing outside theatre mode and stops the moment it closes, so
+     the bottom-bar player costs nothing extra. */
+  const fx = $('pf-dock-fx');
+  const fxCtx = fx?.getContext('2d');
+  let fxRaf = 0;
+  const calmFx = typeof matchMedia === 'function'
+    && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const LIGHTS = Array.from({ length: 96 }, (_, i) => ({
+    ring: i % 3,                                   // three concentric orbits
+    a: (i / 96) * Math.PI * 2 * 3 + (i % 7) * 0.61,
+    sp: (0.10 + (i % 5) * 0.045) * (i % 2 ? 1 : -1),
+    size: 1.2 + ((i * 7919) % 100) / 42,           // deterministic, no Math.random
+    tw: (i % 11) * 0.57,
+    warm: i % 4 !== 0,                             // mostly ember, some pale gold
+  }));
+
+  const drawFx = (tMs) => {
+    if (!fxCtx || !dock.classList.contains('is-big')) return;
+    const t = tMs / 1000;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = dock.clientWidth, h = dock.clientHeight;
+    if (fx.width !== w * dpr || fx.height !== h * dpr) {
+      fx.width = w * dpr; fx.height = h * dpr;
+    }
+    const c = fxCtx;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, w, h);
+
+    // A pulse that breathes like a track: a slow swell, an offbeat, and a
+    // sharpened kick so the accents land rather than drift. Reduced motion
+    // keeps the lights but calms them: half speed, no kick — a drift, not a
+    // freeze, because many Windows desktops report reduced motion just from
+    // animation effects being off.
+    const tt = calmFx ? t * 0.4 : t;
+    const kick = calmFx ? 0 : Math.pow(Math.max(0, Math.sin(t * 4.4)), 6);
+    const e = 0.45 + 0.25 * Math.sin(tt * 2.05) + 0.18 * Math.sin(tt * 3.3 + 1.4) + 0.5 * kick;
+
+    const cx = w / 2, cy = h * 0.46;
+    const base = Math.min(w, h) * 0.34;
+
+    // A soft ember wash behind the player that brightens on the kick.
+    const glow = c.createRadialGradient(cx, cy, base * 0.2, cx, cy, base * 1.9);
+    glow.addColorStop(0, `rgba(217,89,38,${0.05 + 0.07 * e})`);
+    glow.addColorStop(1, 'rgba(217,89,38,0)');
+    c.fillStyle = glow;
+    c.fillRect(0, 0, w, h);
+
+    for (const p of LIGHTS) {
+      const R = base * (0.82 + p.ring * 0.22) * (1 + 0.05 * e * Math.sin(tt * 1.7 + p.tw));
+      const a = p.a + tt * p.sp;
+      const x = cx + Math.cos(a) * R * 1.28;       // wider than tall, like a halo
+      const y = cy + Math.sin(a) * R * 0.86;
+      const twinkle = 0.35 + 0.65 * Math.abs(Math.sin(tt * 1.3 + p.tw * 3));
+      const s = p.size * (0.8 + 0.5 * e);
+      c.beginPath();
+      c.arc(x, y, s, 0, Math.PI * 2);
+      c.fillStyle = p.warm
+        ? `rgba(232,122,77,${0.5 * twinkle})`
+        : `rgba(244,236,227,${0.4 * twinkle})`;
+      c.fill();
+      // halo around each light, cheap enough to run on all of them
+      c.beginPath();
+      c.arc(x, y, s * 3, 0, Math.PI * 2);
+      c.fillStyle = p.warm
+        ? `rgba(217,89,38,${0.08 * twinkle})`
+        : `rgba(244,236,227,${0.05 * twinkle})`;
+      c.fill();
+    }
+  };
+
+  const fxLoop = (now) => {
+    drawFx(now);
+    fxRaf = dock.classList.contains('is-big')
+      ? requestAnimationFrame(fxLoop) : 0;
+  };
+  const fxStart = () => {
+    if (!fxCtx) return;
+    // Where frames are never delivered the canvas just holds this one still
+    // frame — decorative, so a static halo is a fine floor.
+    drawFx(4000);
+    if (!fxRaf) fxRaf = requestAnimationFrame(fxLoop);
+  };
+  const fxStop = () => {
+    if (fxRaf) cancelAnimationFrame(fxRaf);
+    fxRaf = 0;
+    fxCtx?.clearRect(0, 0, fx.width, fx.height);
+  };
+
   /* Theatre mode is the same player at full size rather than a second one.
      Moving an iframe in the DOM reloads it, which would restart the track and
      drop the queue, so the dock simply grows instead. */
   const big = (on) => {
     dock.classList.toggle('is-big', on);
     document.body.style.overflow = on ? 'hidden' : '';
+    if (on) fxStart(); else fxStop();
   };
 
   $('pf-dock-close').addEventListener('click', close);
