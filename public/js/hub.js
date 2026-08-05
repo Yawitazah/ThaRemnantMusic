@@ -8,7 +8,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
-import { socialRow, socialIcon, iconFor, isMusicLink, rollAll } from './icons.js';
+import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, rollAll } from './icons.js';
 import { SRC_NAME, playableArt, hydrateArt, dockMarkup, initDock } from './dock.js';
 import { mountTeamBar } from './teambar.js';
 
@@ -105,6 +105,13 @@ export async function boot(slug) {
   const own = releases.filter(r => r.kind !== 'feature');
   const feats = releases.filter(r => r.kind === 'feature');
 
+  /* Icons at the top are for following. Everything else, and the store above
+     all, gets a named button in the list where a visitor can actually read
+     what it is. Stores are pulled to the front of that list. */
+  const socials = links.filter(l => isSocialLink(l.label, l.url));
+  const listed = links.filter(l => isListedLink(l.label, l.url))
+    .sort((x, y) => (isStoreLink(y.label, y.url) ? 1 : 0) - (isStoreLink(x.label, x.url) ? 1 : 0));
+
   const dsp = (r, platform, url) => url
     ? `<a class="hub-dsp" href="${esc(url)}" target="_blank" rel="noopener"
          data-item="${esc(r.title)}" data-label="${esc(`${r.title} · ${platform}`)}">${platform}</a>` : '';
@@ -136,7 +143,7 @@ export async function boot(slug) {
     <p class="hub-role">${esc(profile.role || '')}</p>
     ${profile.tagline ? `<p class="hub-tagline">${esc(profile.tagline)}</p>` : ''}
     ${subs ? `<p class="hub-subs"><span data-roll="${subs}">${fmt(subs)}</span> subscribers</p>` : ''}
-    ${socialRow(links.map(l => ({ label: l.label, url: l.url, id: l.id })),
+    ${socialRow(socials.map(l => ({ label: l.label, url: l.url, id: l.id })),
       { size: 20, cls: 'social-row social-row-hero' })}
   </header>
 
@@ -155,10 +162,12 @@ export async function boot(slug) {
       <span>Artist profile<small>Popular tracks, releases, tour dates</small></span>
       <span class="hub-arrow">→</span>
     </a>`}
-    ${links.filter(l => isMusicLink(l.label, l.url)).map(l => `
-      <a class="hub-btn" href="${esc(l.url)}" target="_blank" rel="noopener" data-link-id="${l.id}">
+    ${listed.map(l => `
+      <a class="hub-btn ${isStoreLink(l.label, l.url) ? 'hub-btn-store' : ''}"
+         href="${esc(l.url)}" target="_blank" rel="noopener" data-link-id="${l.id}">
         <span class="hub-ic">${socialIcon(iconFor(l.label, l.url), 18)}</span>
-        <span>${esc(l.label)}${l.note ? `<small>${esc(l.note)}</small>` : ''}</span>
+        <span>${esc(l.label)}${l.note ? `<small>${esc(l.note)}</small>`
+          : isStoreLink(l.label, l.url) ? '<small>Merch and releases</small>' : ''}</span>
         <span class="hub-arrow">→</span>
       </a>`).join('')}
   </nav>

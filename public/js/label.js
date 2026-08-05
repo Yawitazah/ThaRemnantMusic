@@ -96,14 +96,19 @@ export async function boot() {
 
   /* Management is deliberately absent from this page. It is the artists' page,
      and the label's staff belong in the Command Center, not in front of fans. */
-  const [profiles, releases, projects, catalog, channels, links] = await Promise.all([
+  const [profiles, releases, projects, catalog, channels, links, settings] = await Promise.all([
     sel('artist_profiles', 'select=*&order=sort_order'),
     sel('releases', 'select=*&order=year.desc,sort_order'),
     sel('projects', 'select=*&order=priority'),
     sel('catalog', 'select=*&order=views.desc'),
     sel('channels', 'select=*'),
     sel('hub_links', 'select=*&active=eq.true&order=sort_order'),
+    sel('settings', 'select=*&key=eq.founding'),
   ]);
+
+  // Who founded the label is stated once, in settings, so no page invents its
+  // own wording for it.
+  const founding = settings?.[0]?.value?.line || '';
 
   /* The same record is stored once per credited artist, so the label view has
      to fold them back into one card or Righteous appears three times. */
@@ -231,6 +236,7 @@ export async function boot() {
     <div class="lb-inner">
       <span class="lb-eyebrow reveal">The roster</span>
       <h2 class="reveal">Four artists${reach ? `, ${fmt(reach)} people reached` : ''}</h2>
+      ${founding ? `<p class="lb-founding reveal">${esc(founding)}</p>` : ''}
       <div class="lb-artists">${profiles.map((p, i) =>
         `<div class="reveal" style="--d:${i * 80}ms">${artistCard(p)}</div>`).join('')}</div>
     </div>

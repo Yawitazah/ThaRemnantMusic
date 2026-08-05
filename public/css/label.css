@@ -188,6 +188,11 @@ body.lb-calm .lb-scroll span { animation:none; opacity:1; }
 .lb-dsps a:hover { color:var(--ember-soft); border-color:var(--ember); }
 .lb-dsps.big a { font-size:.84rem; padding:9px 20px; }
 
+.lb-founding {
+  margin:-26px 0 34px; font-size:.82rem; letter-spacing:.16em; text-transform:uppercase;
+  font-weight:650; color:rgba(244,236,227,.55);
+}
+
 /* ---------- roster ---------- */
 .lb-artists { display:grid; gap:22px; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); }
 .lb-artist {

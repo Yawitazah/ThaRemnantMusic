@@ -599,6 +599,31 @@ body.hub-mode .view { max-width:none; padding:0; }
 .hub-capture form { display:flex; flex-direction:column; gap:9px; margin-top:12px; }
 .hub-capture .btn { background:var(--series-2); border-color:var(--series-2); font-weight:650; }
 .hub-capture-done { color:var(--good); font-weight:600; margin:14px 0 4px; }
+/* A store is the one link a visitor will not find by guessing, so it is the
+   only button on the hub that carries the brand colour. */
+.hub-btn-store {
+  border-color:color-mix(in srgb, var(--series-2) 55%, var(--line));
+  background:color-mix(in srgb, var(--series-2) 10%, transparent);
+}
+.hub-btn-store:hover { border-color:var(--series-2); }
+.hub-btn-store .hub-ic { color:var(--series-2); }
+
+/* Named links on the artist page, under the social icons. */
+.pf-links { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.pf-link {
+  display:inline-flex; align-items:center; gap:7px; padding:6px 13px; border-radius:99px;
+  border:1px solid rgba(255,255,255,.28); color:#fff; text-decoration:none;
+  font-size:.79rem; font-weight:650; backdrop-filter:blur(4px);
+}
+.pf-link:hover { border-color:#fff; }
+.pf-link.is-store {
+  border-color:var(--series-2);
+  background:color-mix(in srgb, var(--series-2) 22%, transparent);
+}
+/* A global `svg { width:100% }` exists for the charts, and it swallows the
+   width attribute on these icons. Pin the size here. */
+.pf-link svg { flex:none; opacity:.9; width:15px; height:15px; }
+
 .hub-bio { margin:0 0 22px; }
 .hub-bio p { margin:0; color:var(--text-secondary); line-height:1.7; font-size:.93rem; }
 /* Track record on the Team tab. */

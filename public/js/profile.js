@@ -8,7 +8,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
-import { socialRow, rollAll } from './icons.js';
+import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, rollAll } from './icons.js';
 import { SRC_NAME, ytThumb, playableArt, hydrateArt, dockMarkup, initDock } from './dock.js';
 import { mountTeamBar } from './teambar.js';
 
@@ -96,6 +96,12 @@ export async function boot(slug) {
   const listeners = profile.monthly_listeners;
   const followers = followerMap[a] || 0;
 
+  /* Same split the hub uses: icons to follow, named buttons for everything
+     else, with the store first so it is never mistaken for a stray icon. */
+  const socials = links.filter(l => isSocialLink(l.label, l.url));
+  const listed = links.filter(l => isListedLink(l.label, l.url))
+    .sort((x, y) => (isStoreLink(y.label, y.url) ? 1 : 0) - (isStoreLink(x.label, x.url) ? 1 : 0));
+
   const own = releases.filter(r => r.kind !== 'feature');
   const albums = own.filter(r => /album/i.test(r.kind || ''));
   const singles = own.filter(r => /single|ep/i.test(r.kind || ''));
@@ -140,8 +146,15 @@ export async function boot(slug) {
         <button class="btn pf-follow" id="pf-follow" type="button">Follow</button>
         <a class="btn ghost" href="/a/${esc(slug)}">All links</a>
       </div>
-      ${socialRow(links.map(l => ({ label: l.label, url: l.url, id: l.id })),
+      ${socialRow(socials.map(l => ({ label: l.label, url: l.url, id: l.id })),
         { size: 20, cls: 'social-row social-row-hero' })}
+      ${listed.length ? `<div class="pf-links">
+        ${listed.map(l => `
+          <a class="pf-link ${isStoreLink(l.label, l.url) ? 'is-store' : ''}"
+             href="${esc(l.url)}" target="_blank" rel="noopener" data-link-id="${l.id}">
+            ${socialIcon(iconFor(l.label, l.url), 15)}<span>${esc(l.label)}</span>
+          </a>`).join('')}
+      </div>` : ''}
     </div>
   </header>
 

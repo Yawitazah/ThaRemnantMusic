@@ -12,10 +12,17 @@ const P = {
   soundcloud:'M1.5 14.3c0-.2-.1-.3-.2-.3s-.2.1-.2.3l-.2 1.4.2 1.4c0 .2.1.3.2.3s.2-.1.2-.3l.2-1.4-.2-1.4Zm1.4-.9c0-.2-.1-.3-.3-.3s-.3.1-.3.3l-.2 2.3.2 2.2c0 .2.1.3.3.3s.3-.1.3-.3l.3-2.2-.3-2.3Zm1.5-.6c0-.2-.2-.4-.4-.4s-.4.2-.4.4L3.4 15.7l.2 2.6c0 .2.2.4.4.4s.4-.2.4-.4l.3-2.6-.3-2.9Zm1.5-.2c0-.3-.2-.5-.5-.5s-.5.2-.5.5l-.2 3.1.2 2.6c0 .3.2.5.5.5s.5-.2.5-.5l.2-2.6-.2-3.1Zm1.6.3c0-.3-.2-.5-.5-.5s-.5.2-.5.5l-.2 2.8.2 2.6c0 .3.2.5.5.5s.5-.2.5-.5l.2-2.6-.2-2.8Zm1.6-2.4c-.3 0-.6.3-.6.6l-.2 5.2.2 2.5c0 .3.3.6.6.6s.6-.3.6-.6l.2-2.5-.2-5.2c0-.3-.3-.6-.6-.6Zm1.7-.9c-.4 0-.6.3-.7.6l-.2 6.1.2 2.5c0 .3.3.6.7.6s.6-.3.6-.6l.2-2.5-.2-6.1c0-.3-.3-.6-.6-.6Zm1.8-.4c-.4 0-.7.3-.7.7l-.1 6.4.1 2.4c0 .4.3.7.7.7s.7-.3.7-.7l.2-2.4-.2-6.4c0-.4-.3-.7-.7-.7Zm9.4 3.8c-.4 0-.8.1-1.1.2-.3-2.9-2.8-5.2-5.8-5.2-.7 0-1.4.1-2 .4-.2.1-.3.2-.3.5v9.6c0 .3.2.5.5.5h8.7a3 3 0 0 0 0-6Z',
   website:  'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 6h-2.9a15.6 15.6 0 0 0-1.4-3.6A8 8 0 0 1 18.9 8ZM12 4.1c.7 1 1.3 2.3 1.7 3.9h-3.4c.4-1.6 1-2.9 1.7-3.9ZM4.3 14a8 8 0 0 1 0-4h3.3a17 17 0 0 0 0 4H4.3Zm.8 2h2.9c.3 1.3.8 2.5 1.4 3.6A8 8 0 0 1 5.1 16Zm2.9-8H5.1a8 8 0 0 1 4.3-3.6A15.6 15.6 0 0 0 8 8Zm4 11.9c-.7-1-1.3-2.3-1.7-3.9h3.4c-.4 1.6-1 2.9-1.7 3.9ZM14.1 14H9.9a15 15 0 0 1 0-4h4.2a15 15 0 0 1 0 4Zm.5 5.6c.6-1.1 1.1-2.3 1.4-3.6h2.9a8 8 0 0 1-4.3 3.6Zm1.8-5.6a17 17 0 0 0 0-4h3.3a8 8 0 0 1 0 4h-3.3Z',
   link:     'M10.6 13.4a1 1 0 0 0 1.4 0l3.5-3.5a3.5 3.5 0 1 0-5-5l-1.2 1.2a1 1 0 0 0 1.4 1.4l1.2-1.2a1.5 1.5 0 1 1 2.1 2.1l-3.4 3.5a1 1 0 0 0 0 1.4Zm2.8-2.8a1 1 0 0 0-1.4 0l-3.5 3.5a3.5 3.5 0 1 0 5 5l1.2-1.2a1 1 0 0 0-1.4-1.4l-1.2 1.2a1.5 1.5 0 1 1-2.1-2.1l3.4-3.5a1 1 0 0 0 0-1.4Z',
+  store:    'M5.2 3h13.6a1 1 0 0 1 .95.68l1.2 3.6A3.1 3.1 0 0 1 19 11.4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8.6a3.1 3.1 0 0 1-1.95-4.12l1.2-3.6A1 1 0 0 1 5.2 3Zm.72 2-.97 2.9a1.1 1.1 0 0 0 2.13.5L7.6 5H5.92Zm3.72 0-.5 3.05a1.1 1.1 0 0 0 2.18.3L11.6 5H9.64Zm4 0 .48 3.35a1.1 1.1 0 0 0 2.18-.3L15.8 5h-2.16Zm4.16 0 .62 3.4a1.1 1.1 0 0 0 2.13-.5L19.58 5h-1.78ZM17 12.15a3.1 3.1 0 0 1-2.4-.9 3.1 3.1 0 0 1-4.6 0 3.1 3.1 0 0 1-2.4.9V19h3v-4.2h3.4V19H17v-6.85Z',
+  patreon:  'M15.4 3.2c-3.9 0-7.1 3.2-7.1 7.1 0 3.9 3.2 7 7.1 7 3.9 0 7-3.1 7-7 0-3.9-3.1-7.1-7-7.1ZM2 20.8h3.5V3.2H2v17.6Z',
 };
 
 /* Match a link to an icon by its label first, then by where it points — a hub
    link can be titled anything, but the destination rarely lies. */
+/* A store has to be recognised before the generic ".com" rule below catches it,
+   or every merch site reads as a plain website. */
+const STORE_RE = /store|shop(?!ify\.dev)|merch|apparel|bigcartel|big-cartel|shopify|myshopify|teespring|teepublic|bonfire|spreadshop|spreadshirt|printful|redbubble|etsy|gumroad|square\.site|squarespace|ecwid|sellfy|fourthwall/i;
+const SUPPORT_RE = /patreon|ko-?fi|buymeacoffee|cash\.app|venmo|paypal\.me|gofundme|substack|memberful/i;
+
 export function iconFor(label = '', url = '') {
   const s = `${label} ${url}`.toLowerCase();
   if (/youtu/.test(s)) return 'youtube';
@@ -26,6 +33,9 @@ export function iconFor(label = '', url = '') {
   if (/facebook|fb\.com/.test(s)) return 'facebook';
   if (/twitter|x\.com|(^|\W)x(\W|$)/.test(s)) return 'x';
   if (/soundcloud/.test(s)) return 'soundcloud';
+  if (/patreon/.test(s)) return 'patreon';
+  if (STORE_RE.test(s)) return 'store';
+  if (SUPPORT_RE.test(s)) return 'store';
   if (/last\.fm|website|\.com|\.org|\.net/.test(s)) return 'website';
   return 'link';
 }
@@ -36,12 +46,26 @@ export function socialIcon(name, size = 20) {
     aria-hidden="true" focusable="false"><path d="${d}"/></svg>`;
 }
 
-/* Where a link belongs. The icon row carries everywhere the artist can be
-   found; the big buttons are reserved for places you can actually hear them,
-   so the two lists never repeat each other. */
+/* Where a link belongs.
+   The icon row is social only: Instagram, TikTok, X, Facebook and the like.
+   Those are places to follow someone, and a bare icon is enough because the
+   glyph itself says where it goes.
+   Everything else is a labelled button in the list. A store is the case that
+   forced this: sitting in the icon row, nobody could tell it was the merch
+   shop, so nobody clicked it. The same goes for Patreon, a personal site or
+   anything unrecognised — if a visitor has to guess, it gets a name. */
+const SOCIAL = new Set(['instagram', 'tiktok', 'facebook', 'x']);
+export const isSocialLink = (label = '', url = '') => SOCIAL.has(iconFor(label, url))
+  || /threads\.net|snapchat|linkedin|reddit|pinterest|discord|telegram|whatsapp/i.test(`${label} ${url}`);
+
+/** Anything that is not a social profile earns a named button. */
+export const isListedLink = (label = '', url = '') => !isSocialLink(label, url);
+
 const MUSIC = new Set(['youtube', 'spotify', 'apple', 'soundcloud']);
 export const isMusicLink = (label = '', url = '') => MUSIC.has(iconFor(label, url))
   || /deezer|tidal|audiomack|bandcamp|amazon|pandora|boomplay/i.test(`${label} ${url}`);
+
+export const isStoreLink = (label = '', url = '') => iconFor(label, url) === 'store';
 
 /* Count up to a number, so a figure lands rather than just appearing.
    The markup already contains the real value — this only replays it from zero.
