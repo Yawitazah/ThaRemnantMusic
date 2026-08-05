@@ -58,8 +58,18 @@ itself. Built in `bindFilm()` in `label.js`.
   206 response a browser reports the file unseekable, `video.seekable` is empty,
   and assigning `currentTime` silently does nothing. `server.js` streams ranges
   for `.mp4`/`.webm`.
-- Clips are encoded with a **very short keyframe interval** (`-g 8`) so seeking
-  lands fast, and are ~1MB each, loaded only when their section is near.
+- **Clips are encoded all-intra** (`-g 1`), 960x540 at 16fps, so every seek is a
+  direct frame fetch with no forward decoding. Measured in the page: median seek
+  **7.7ms against a 16.7ms frame budget**, down from 18.6ms at 720p/`-g 8`,
+  where seeks overran the budget and the scrub visibly stuttered. Counter-
+  intuitively the all-intra file is also *smaller*, because the scenes are dark
+  and low-detail. Do not "optimise" these back to a long GOP.
+- **Scroll sets a target; an animation frame eases the playhead toward it.**
+  A wheel scrolls in ~100px jumps, which is about a second of clip, so mapping
+  scroll straight onto `currentTime` was a slide show no matter how well the
+  video decoded. Seeks are quantised to the frame grid and skipped while one is
+  in flight, because assigning `currentTime` again cancels the seek in progress.
+- Clips are ~1MB each, loaded only when their section is near.
 - **Phones run it too**, on a 640px `-sm.mp4` cut (~300KB each). What makes that
   safe is the **release step**: any clip more than ~2 viewports away has its
   `src` dropped and `load()` called, handing the decoder back. iOS keeps only a

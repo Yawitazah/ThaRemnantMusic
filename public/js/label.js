@@ -486,7 +486,12 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
     }
   };
   armNearby();
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) armNearby(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    armNearby();
+    // Coming back to the tab, land on the right frame rather than easing to it.
+    setTimeout(() => api.settle(), 0);
+  });
 
   // Crossing the phone/desktop line mid-session means every clip is the wrong
   // cut. Drop them all and let the next sweep fetch the right one.
@@ -511,26 +516,48 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
     }
   };
 
-  /* Seeking runs straight from the scroll event rather than inside an animation
-     frame. Scrubbing should track the finger with no frame of lag, and a
-     background tab is served no frames at all, which would leave every clip
-     frozen on its first frame. */
-  const clamp01 = n => Math.min(1, Math.max(0, n));
+  /* ---------- smoothing ----------
+     Two things made this stutter, and both are here.
 
-  const scrub = () => {
+     A mouse wheel does not scroll continuously. It arrives in jumps of roughly
+     a hundred pixels, and a hundred pixels is about a second of clip, so
+     mapping scroll straight onto currentTime produced a slide show however well
+     the video decoded. The scroll now only sets a TARGET, and an animation
+     frame eases the playhead toward it. Discrete input, continuous output.
+
+     The second was asking for seeks faster than the decoder could answer.
+     A seek is not free, and assigning currentTime again cancels the one in
+     flight, so a fast scroll could leave every seek abandoned before it painted.
+     Requests are now quantised to the frame grid and skipped while a seek is
+     still running. */
+  const clamp01 = n => Math.min(1, Math.max(0, n));
+  const FRAME = 1 / 16;      // the clips are encoded at 16fps, every frame a keyframe
+  const EASE = 0.18;         // per frame; settles in ~150ms without feeling laggy
+  const target = new WeakMap();
+  const eased = new WeakMap();
+  let raf = 0;
+  let rafProven = false;   // set once a frame has actually been delivered
+
+  const measure = () => {
     const h = window.innerHeight;
     for (const v of vids) {
       if (!v.isConnected) continue;
       const d = v.duration;
-      if (!d || !isFinite(d)) continue;
+      if (!d || !isFinite(d)) { target.delete(v); continue; }
 
       /* Measured against the SECTION, never the video. The plate is sticky now,
          so its own rect stops moving the moment it pins, and scrubbing off that
          would freeze the clip on one frame for the whole hold. */
       const sec = v.closest('.lb-sec, .lb-hero');
       const r = (sec || v).getBoundingClientRect();
-      if (r.bottom < -100 || r.top > h + 100) continue;
-      if (!v.paused) v.pause();
+      if (r.bottom < -100 || r.top > h + 100) { target.delete(v); continue; }
+      if (!v.paused) {
+        // Coming back from the idle playthrough the playhead has moved on its
+        // own, so the easing re-seeds from where the clip actually is rather
+        // than snapping back to wherever the last scrub left it.
+        v.pause();
+        eased.set(v, v.currentTime);
+      }
 
       /* The held stretch is exactly the scroll distance where the plate fills
          the screen: from the section's top reaching the top of the viewport to
@@ -543,12 +570,60 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
         ? clamp01(-r.top / hold)
         : clamp01((h - r.top) / (h + r.height));
 
-      const t = p * (d - 0.05);
-      if (Math.abs(v.currentTime - t) > 0.02) v.currentTime = t;
+      target.set(v, p * (d - 0.05));
     }
   };
 
-  return {
+  const apply = (v, t) => {
+    // Never ask for a position between two frames; it is a seek that cannot
+    // change the picture.
+    const snapped = Math.round(t / FRAME) * FRAME;
+    if (v.seeking) return;                       // one seek at a time
+    if (Math.abs(v.currentTime - snapped) < FRAME * 0.9) return;
+    v.currentTime = snapped;
+  };
+
+  const tick = () => {
+    raf = 0;
+    rafProven = true;
+    let moving = false;
+    for (const v of vids) {
+      const to = target.get(v);
+      if (to == null) continue;
+      let cur = eased.get(v);
+      if (cur == null) cur = v.currentTime || 0;
+      const diff = to - cur;
+      if (Math.abs(diff) <= FRAME / 2) cur = to;
+      else { cur += diff * EASE; moving = true; }
+      eased.set(v, cur);
+      apply(v, cur);
+    }
+    if (moving) raf = requestAnimationFrame(tick);
+  };
+
+  const kick = () => { if (!raf) raf = requestAnimationFrame(tick); };
+  kick();   // proves whether frames arrive here at all
+
+  const place = () => {
+    for (const v of vids) {
+      const to = target.get(v);
+      if (to == null) continue;
+      eased.set(v, to);
+      apply(v, to);
+    }
+  };
+
+  /* Where animation frames are never delivered — a background tab, a pane that
+     is not compositing — the easing would never run and every clip would sit on
+     frame zero. Until a frame has actually arrived, the playhead is placed
+     directly instead. Nothing is smoothed, but nothing is stuck either. */
+  const scrub = () => {
+    measure();
+    kick();
+    if (!rafProven) place();
+  };
+
+  const api = {
     scrolled() {
       armNearby();
       scrubbing = true;
@@ -558,9 +633,11 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
       // makes it feel alive rather than mechanical.
       idleTimer = setTimeout(stopScrub, 320);
     },
-    // Called once at boot so a clip that loads late lands on the right frame.
-    settle() { if (!scrubbing) scrub(); },
+    /* A clip that finishes loading late has missed the easing entirely, so it
+       is placed on its frame outright rather than sliding there from zero. */
+    settle() { measure(); place(); },
   };
+  return api;
 }
 
 function bindCapture(view) {
