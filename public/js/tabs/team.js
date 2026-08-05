@@ -44,23 +44,38 @@ export function render() {
         data-member="${esc(p.name)}">${esc(p.name)}</button>`).join('')}
     </div>` : '';
 
+  const initials = m.name.replace(/"[^"]*"/g, '').trim().split(/\s+/)
+    .map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
   const profile = card(`
-    <div class="spread" style="flex-wrap:wrap;gap:12px">
-      <div>
-        <h3 style="margin:0">${esc(m.name)}</h3>
-        <p class="muted sm" style="margin:.35em 0 0">${esc(m.title)}${m.based ? ' · ' + esc(m.based) : ''}</p>
+    <div class="tm-head">
+      <div class="tm-photo">
+        ${m.image_url
+          ? `<img src="${esc(m.image_url)}" alt="${esc(m.name)}">`
+          : `<span class="tm-initials">${esc(initials)}</span>`}
       </div>
-      <div class="row">
-        ${m.slug ? `<a class="btn sm ghost" href="${esc(hubUrl)}" target="_blank" rel="noopener">View hub</a>
-          <button class="btn sm ghost" id="tm-copy" data-url="${esc(hubUrl)}" type="button">Copy link</button>` : ''}
+      <div class="tm-head-body">
+        <h3>${esc(m.name)}</h3>
+        <p class="tm-role">${esc(m.title)}</p>
+        ${m.based ? `<p class="tm-based">${esc(m.based)}</p>` : ''}
+        ${m.short ? `<p class="tm-short">${esc(m.short)}</p>` : ''}
+        <div class="row" style="margin-top:14px">
+          ${m.slug ? `<a class="btn sm" href="${esc(hubUrl)}" target="_blank" rel="noopener">View hub</a>
+            <button class="btn sm ghost" id="tm-copy" data-url="${esc(hubUrl)}" type="button">Copy link</button>` : ''}
+        </div>
+        ${linkRows.length ? `<div class="tm-links">
+          ${linkRows.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener"
+             class="${/store|merch|chariot/i.test(l.label + l.url) ? 'is-store' : ''}"
+             >${esc(l.label)}</a>`).join('')}
+        </div>` : ''}
+        ${!m.image_url ? `<p class="muted sm" style="margin-top:14px">
+          No photo on file yet. Add one and it appears here and on the hub.</p>` : ''}
       </div>
     </div>
-    ${m.bio ? `<p style="margin:16px 0 0;max-width:70ch;line-height:1.7">${esc(m.bio)}</p>` : ''}
+    ${m.bio ? `<p class="tm-bio">${esc(m.bio)}</p>` : ''}
     ${(m.highlights || []).length ? `
-      <h4 style="margin:20px 0 8px">Track record</h4>
-      <ul class="tm-list">${m.highlights.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-    ${!m.image_url ? `<p class="muted sm" style="margin-top:16px">
-      No photo on file yet. Add one and it appears on the hub.</p>` : ''}`);
+      <h4 class="tm-h">Track record</h4>
+      <ul class="tm-list">${m.highlights.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`);
 
   const growth = card(`
     <div class="spread" style="flex-wrap:wrap;gap:10px">

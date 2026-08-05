@@ -8,7 +8,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
-import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, rollAll } from './icons.js';
+import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, isPlayableLink, rollAll } from './icons.js';
 import { SRC_NAME, playableArt, playableFor, queueFrom, hydrateArt, dockMarkup, initDock } from './dock.js';
 import { mountTeamBar } from './teambar.js';
 
@@ -168,7 +168,14 @@ export async function boot(slug) {
       <span>Artist profile<small>Popular tracks, releases, tour dates</small></span>
       <span class="hub-arrow">→</span>
     </a>`}
-    ${listed.map(l => `
+    ${listed.map(l => isPlayableLink(l.label, l.url) ? `
+      <button class="hub-btn hub-btn-play" type="button"
+         data-src="soundcloud" data-ref="${esc(l.url)}" data-title="${esc(l.label)}"
+         data-credit="${esc(a)}" data-item="${esc(l.label)}" data-link-id="${l.id}">
+        <span class="hub-ic">${socialIcon(iconFor(l.label, l.url), 18)}</span>
+        <span>${esc(l.label)}<small>${esc(l.note || 'Play it here')}</small></span>
+        <span class="hub-arrow" aria-hidden="true">▶</span>
+      </button>` : `
       <a class="hub-btn ${isStoreLink(l.label, l.url) ? 'hub-btn-store' : ''}"
          href="${esc(l.url)}" target="_blank" rel="noopener" data-link-id="${l.id}">
         <span class="hub-ic">${socialIcon(iconFor(l.label, l.url), 18)}</span>

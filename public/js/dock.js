@@ -11,7 +11,9 @@
 
 import { esc } from './ui.js';
 
-export const SRC_NAME = { youtube: 'YouTube', spotify: 'Spotify', apple: 'Apple Music' };
+export const SRC_NAME = {
+  youtube: 'YouTube', spotify: 'Spotify', apple: 'Apple Music', soundcloud: 'SoundCloud',
+};
 
 export const ytId = url =>
   (String(url || '').match(/[?&]v=([\w-]+)/) || String(url || '').match(/youtu\.be\/([\w-]+)/) || [])[1] || '';
@@ -30,11 +32,29 @@ export const appleEmbed = url =>
     ? String(url).replace(/(?:geo\.)?music\.apple\.com/, 'embed.music.apple.com')
     : null;
 
+/* soundcloud.com/... -> the official widget. The user URL is a playlist of
+   everything they have posted, so one entry covers the whole SoundCloud
+   catalogue and picks up anything uploaded later on its own. */
+export const soundcloudEmbed = url => {
+  if (!/soundcloud\.com\//i.test(String(url || ''))) return null;
+  const p = new URLSearchParams({
+    url: String(url),
+    auto_play: 'true',
+    show_artwork: 'true',
+    show_comments: 'false',
+    show_teaser: 'false',
+    visual: 'false',
+    color: 'd95926',
+  });
+  return `https://w.soundcloud.com/player/?${p}`;
+};
+
 /** Best playable source for a release row, or null if it has no links at all. */
 export const playableFor = r =>
   r?.youtube_url && ytId(r.youtube_url) ? { src: 'youtube', ref: ytId(r.youtube_url) }
-  : r?.spotify_url ? { src: 'spotify', ref: r.spotify_url }
-  : r?.apple_url   ? { src: 'apple',   ref: r.apple_url }
+  : r?.spotify_url    ? { src: 'spotify',    ref: r.spotify_url }
+  : r?.apple_url      ? { src: 'apple',      ref: r.apple_url }
+  : r?.soundcloud_url ? { src: 'soundcloud', ref: r.soundcloud_url }
   : null;
 
 export const ytThumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
@@ -253,15 +273,55 @@ export function initDock({ onTrack } = {}) {
   };
 
   const showEmbed = (src, ref) => {
-    const url = src === 'spotify' ? spotifyEmbed(ref) : appleEmbed(ref);
+    const url = src === 'spotify' ? spotifyEmbed(ref)
+      : src === 'soundcloud' ? soundcloudEmbed(ref)
+      : appleEmbed(ref);
     if (!url) return false;
     // Spotify and Apple ship artwork, title and transport inside the embed, so
     // repeating our own strip beside it would just be noise.
     if (yt) { try { yt.stopVideo(); } catch {} }
-    dockEmbed.innerHTML = `<iframe src="${esc(url)}" title="Player"
+    dockEmbed.innerHTML = `<iframe id="pf-sc" src="${esc(url)}" title="Player"
       allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>`;
     $('pf-dock-out').href = ref;
+    if (src === 'soundcloud') bindSoundCloud($('pf-sc'));
     return true;
+  };
+
+  /* SoundCloud is the one embed besides YouTube that will tell us a track
+     finished, through its own widget API, so a queue can carry on past it. It
+     also hands back the real track title, which the profile URL alone cannot. */
+  let scApi = null;
+  const loadScApi = () => {
+    if (scApi) return scApi;
+    scApi = new Promise((resolve, reject) => {
+      if (window.SC?.Widget) return resolve(window.SC);
+      const s = document.createElement('script');
+      s.src = 'https://w.soundcloud.com/player/api.js';
+      s.async = true;
+      s.onload = () => resolve(window.SC);
+      s.onerror = () => reject(new Error('SoundCloud API blocked'));
+      document.head.appendChild(s);
+      setTimeout(() => reject(new Error('SoundCloud API timed out')), 8000);
+    });
+    return scApi;
+  };
+
+  const bindSoundCloud = async (iframe) => {
+    let SC;
+    try { SC = await loadScApi(); } catch { return; }   // still plays, just cannot advance
+    if (!iframe.isConnected) return;
+    const w = SC.Widget(iframe);
+    w.bind(SC.Widget.Events.READY, () => {
+      w.getCurrentSound(sound => {
+        if (!sound?.title) return;
+        // The stored link is the artist's profile, so the song's real name only
+        // arrives once the widget has loaded it.
+        $('pf-dock-title').textContent = sound.title;
+        $('pf-dock-credit').textContent = sound.user?.username || '';
+        if (playing) playing.title = sound.title;
+      });
+    });
+    w.bind(SC.Widget.Events.FINISH, () => advance(1));
   };
 
   const open = (src) => {

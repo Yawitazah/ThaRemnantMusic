@@ -8,7 +8,7 @@
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { esc, fmt } from './ui.js';
-import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, rollAll } from './icons.js';
+import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, isPlayableLink, rollAll } from './icons.js';
 import { SRC_NAME, ytThumb, playableArt, playableFor, queueFrom, hydrateArt, dockMarkup, initDock } from './dock.js';
 import { mountTeamBar } from './teambar.js';
 
@@ -166,7 +166,13 @@ export async function boot(slug) {
       ${socialRow(socials.map(l => ({ label: l.label, url: l.url, id: l.id })),
         { size: 20, cls: 'social-row social-row-hero' })}
       ${listed.length ? `<div class="pf-links">
-        ${listed.map(l => `
+        ${listed.map(l => isPlayableLink(l.label, l.url) ? `
+          <button class="pf-link is-play" type="button"
+             data-src="soundcloud" data-ref="${esc(l.url)}" data-title="${esc(l.label)}"
+             data-credit="${esc(a)}" data-item="${esc(l.label)}" data-link-id="${l.id}">
+            ${socialIcon(iconFor(l.label, l.url), 15)}<span>${esc(l.label)}</span>
+            <span aria-hidden="true">▶</span>
+          </button>` : `
           <a class="pf-link ${isStoreLink(l.label, l.url) ? 'is-store' : ''}"
              href="${esc(l.url)}" target="_blank" rel="noopener" data-link-id="${l.id}">
             ${socialIcon(iconFor(l.label, l.url), 15)}<span>${esc(l.label)}</span>

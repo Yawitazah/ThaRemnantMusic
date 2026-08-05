@@ -67,6 +67,10 @@ export const isMusicLink = (label = '', url = '') => MUSIC.has(iconFor(label, ur
 
 export const isStoreLink = (label = '', url = '') => iconFor(label, url) === 'store';
 
+/* A SoundCloud link is music, and it can be played on the page rather than
+   sending someone away, so it gets a play button instead of an arrow. */
+export const isPlayableLink = (label = '', url = '') => /soundcloud\.com\//i.test(`${url}`);
+
 /* Count up to a number, so a figure lands rather than just appearing.
    The markup already contains the real value — this only replays it from zero.
    If anything here never runs (no observer callbacks in a background tab,
