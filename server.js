@@ -146,11 +146,12 @@ async function ytRefresh() {
     if (!res.ok) continue;                       // one bad handle must not sink the run
     const s = (await res.json()).items?.[0]?.statistics;
     if (!s) continue;
-    channels.push({
-      handle,
-      subs: Number(s.subscriberCount || 0),
-      videos: Number(s.videoCount || 0),
-    });
+    /* Subscribers only. videoCount is every upload on the channel — Shorts, live
+       streams, reaction videos, the lot — so refreshing it turned a curated count
+       of 40 music videos into 244 of everything, which measures nothing anyone
+       here cares about. The catalog table is the real count of music, and that is
+       maintained deliberately rather than by whatever got posted yesterday. */
+    channels.push({ handle, subs: Number(s.subscriberCount || 0) });
   }
 
   const res = await rpc('yt_apply', { p_secret: PUSH_SECRET, p_videos: videos, p_channels: channels });

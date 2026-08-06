@@ -75,7 +75,8 @@ export async function boot(slug) {
   const a = profile.artist;
   const enc = encodeURIComponent(a);
 
-  const [links, releases, channels, tour, discovered, followerMap, catalog, reachMap] = await Promise.all([
+  const [links, releases, channels, tour, discovered, followerMap, catalog, reachMap,
+         projects, albumTracks] = await Promise.all([
     sel('hub_links', `artist=eq.${enc}&active=eq.true&order=sort_order`),
     sel('releases', `artist=eq.${enc}&order=year.desc`),
     sel('channels', `artist_name=eq.${enc}&select=*`),
@@ -84,6 +85,8 @@ export async function boot(slug) {
     rpc('follower_counts'),
     sel('catalog', 'select=*&order=views.desc'),
     rpc('artist_reach'),
+    sel('projects', `artist=eq.${enc}&order=priority`),
+    rpc('album_tracklist'),
   ]);
   const reach = reachMap[a];
 
@@ -124,6 +127,53 @@ export async function boot(slug) {
       src: 'youtube', ref: t.video_id, title: t.title, credit: t.credit || '', item: t.title,
     })),
   };
+
+  /* The current album, in TRACK ORDER, on the artist's own page.
+     It cannot come from `releases` — the nine songs of the 2026 album were never
+     added there, which is why this page showed nothing new. And it must not come
+     from Popular either: Popular ranks by views, so a song released last week
+     sits below one from 2019 and the record never reads as a record. So the
+     lineup comes straight from album_tracks (via the definer RPC) and renders as
+     an ordered list, only on the artist the album belongs to. */
+  const albumProject = (projects || []).find(p => p.kind === 'album' && p.track_count)
+    || (projects || []).find(p => p.kind === 'album');
+  const lineup = albumProject ? (albumTracks || []).filter(t => t.video_id) : [];
+  if (lineup.length) {
+    QUEUES.album = lineup.map(t => ({
+      src: 'youtube', ref: t.video_id, title: t.title, item: t.title,
+      credit: t.features && t.features !== '—' ? `${a} ft. ${t.features}` : a,
+    }));
+  }
+
+  const albumSection = () => lineup.length ? `
+    <section class="pf-section">
+      <div class="pf-album-head">
+        <div>
+          <h2>${esc(albumProject.title || 'The album')}</h2>
+          <p class="muted sm">${lineup.length} tracks${
+            albumProject.release_label ? ' · ' + esc(albumProject.release_label) : ''} ·
+            play any track and the album runs on</p>
+        </div>
+        <button class="pf-play-all" type="button" data-src="youtube"
+          data-ref="${esc(lineup[0].video_id)}" data-title="${esc(lineup[0].title)}"
+          data-item="${esc(lineup[0].title)}" data-queue="album" data-qi="0">▶ Play the album</button>
+      </div>
+      <ol class="pf-tracks">
+        ${lineup.map((t, i) => `
+        <li>
+          <span class="pf-rank">${t.track_no || i + 1}</span>
+          <button class="pf-track" type="button" data-src="youtube" data-ref="${esc(t.video_id)}"
+            data-title="${esc(t.title)}" data-item="${esc(t.title)}"
+            data-credit="${esc(t.features && t.features !== '—' ? 'ft. ' + t.features : a)}"
+            data-queue="album" data-qi="${i}">
+            <img src="${esc(ytThumb(t.video_id))}" alt="" loading="lazy">
+            <span class="pf-track-t">${esc(t.title)}
+              <small>${esc(t.features && t.features !== '—' ? 'ft. ' + t.features : (t.released || ''))}</small></span>
+            <span class="pf-play-ic" aria-hidden="true">▶</span>
+          </button>
+        </li>`).join('')}
+      </ol>
+    </section>` : '';
 
   const releaseCard = (key) => (r, i) => `
     <article class="pf-rel">
@@ -180,6 +230,11 @@ export async function boot(slug) {
       </div>` : ''}
     </div>
   </header>
+
+  <!-- The newest record sits ABOVE Popular. Popular ranks by views, so a song
+       released last week loses to one from 2019 and the new album is invisible
+       on the page that exists to promote it. -->
+  ${albumSection()}
 
   ${popular.length ? `
   <section class="pf-section">

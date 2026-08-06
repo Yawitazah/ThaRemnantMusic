@@ -776,6 +776,25 @@ button.hub-btn { width:100%; cursor:pointer; font:inherit; text-align:left; }
 .pf-follow.on { background:var(--series-2); border-color:var(--series-2); }
 .profile .btn.ghost { border-radius:99px; padding:8px 20px; }
 
+/* ---------- album lineup on the artist page ----------
+   Reuses .pf-tracks / .pf-rank / .pf-track from the Popular list below rather
+   than redefining them — a duplicate set of those classes fought the originals,
+   since both target the same elements and the later block wins. Only the two
+   genuinely new pieces live here: the header row and the play-all button. */
+.pf-album-head {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:14px; flex-wrap:wrap; margin-bottom:12px;
+}
+.pf-album-head h2 { margin-bottom:2px; }
+.pf-play-all {
+  flex:none; border:0; border-radius:99px; cursor:pointer;
+  background:var(--series-2); color:#fff; font:inherit; font-weight:650;
+  font-size:.85rem; padding:10px 20px;
+}
+.pf-play-all:hover { filter:brightness(1.08); }
+/* A phone gets a full-width button rather than one floated beside the heading. */
+@media (max-width:560px) { .pf-play-all { width:100%; } }
+
 .pf-section { padding:26px 26px 0; }
 .pf-section h2 { font-size:1.4rem; letter-spacing:-.02em; margin-bottom:14px; }
 
