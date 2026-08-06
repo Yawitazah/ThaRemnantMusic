@@ -190,7 +190,18 @@ export const dockMarkup = () => `
     <div class="pf-dock-actions">
       <button class="pf-dock-btn" id="pf-dock-prev" type="button" title="Previous track" hidden>⏮</button>
       <button class="pf-dock-btn" id="pf-dock-skip" type="button" title="Next track" hidden>⏭</button>
-      <button class="pf-dock-btn" id="pf-dock-expand" type="button" title="Expand">⤢</button>
+      <button class="pf-dock-btn" id="pf-dock-expand" type="button" title="Expand" aria-label="Expand player">
+        <!-- Drawn, not typed: the old ⤢ glyph came out of whatever fallback font
+             the phone had and looked like a broken character, not a control. -->
+        <svg class="pf-ic-out" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 3h7v7"/><path d="M21 3l-8 8"/><path d="M10 21H3v-7"/><path d="M3 21l8-8"/>
+        </svg>
+        <svg class="pf-ic-in" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 10h-7V3"/><path d="M14 10l7-7"/><path d="M3 14h7v7"/><path d="M10 14l-7 7"/>
+        </svg>
+      </button>
       <a class="pf-dock-btn" id="pf-dock-out" target="_blank" rel="noopener" title="Open on the platform">↗</a>
       <button class="pf-dock-btn" id="pf-dock-close" type="button" title="Close">✕</button>
     </div>

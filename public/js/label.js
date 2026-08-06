@@ -96,7 +96,14 @@ export async function boot() {
 
   /* Management is deliberately absent from this page. It is the artists' page,
      and the label's staff belong in the Command Center, not in front of fans. */
-  const [profiles, releases, projects, catalog, channels, links, settings] = await Promise.all([
+  /* The album lineup comes through a definer RPC because album_tracks itself is
+     team-only; the function exposes exactly the columns a fan needs and no more. */
+  const rpc = name =>
+    fetch(`${REST}/rpc/${name}`, { method: 'POST', headers: HEADERS, body: '{}' })
+      .then(r => (r.ok ? r.json() : []))
+      .catch(() => []);
+
+  const [profiles, releases, projects, catalog, channels, links, settings, albumTracks] = await Promise.all([
     sel('artist_profiles', 'select=*&order=sort_order'),
     sel('releases', 'select=*&order=year.desc,sort_order'),
     sel('projects', 'select=*&order=priority'),
@@ -104,6 +111,7 @@ export async function boot() {
     sel('channels', 'select=*'),
     sel('hub_links', 'select=*&active=eq.true&order=sort_order'),
     sel('settings', 'select=*&key=eq.founding'),
+    rpc('album_tracklist'),
   ]);
 
   // Who founded the label is stated once, in settings, so no page invents its
@@ -134,6 +142,13 @@ export async function boot() {
 
   const top = catalog.slice(0, 6);
 
+  /* The current album, as a queue. Every track lives on YouTube, so starting
+     anywhere plays the record straight through in the dock. The heading comes
+     from the projects row so the page never invents an album title. */
+  const albumProject = projects.find(p => p.kind === 'album' && p.artist === pushing?.artist)
+    || projects.find(p => p.kind === 'album' && p.track_count);
+  const lineup = (albumTracks || []).filter(t => t.video_id);
+
   /* Both lists on this page are playlists: start anywhere and the rest follows. */
   const playableNewest = newest.filter(r => playableFor(r));
   const QUEUES = {
@@ -142,6 +157,12 @@ export async function boot() {
       item: t.title, artist: artistOf(t),
     })),
     releases: queueFrom(playableNewest).map((q, i) => ({ ...q, artist: playableNewest[i].artist })),
+    album: lineup.map(t => ({
+      src: 'youtube', ref: t.video_id, title: t.title,
+      credit: t.features && t.features !== '—'
+        ? `${albumProject?.artist || ''} ft. ${t.features}` : (albumProject?.artist || ''),
+      item: t.title, artist: albumProject?.artist || LABEL,
+    })),
   };
   const reach = channels.reduce((s, c) => s + (c.subs || 0), 0);
 
@@ -239,6 +260,37 @@ export async function boot() {
           </div>
         </div>
       </div>
+
+      ${lineup.length ? `
+      <div class="lb-album reveal">
+        <div class="lb-album-head">
+          <div>
+            <h3>${esc(albumProject?.title || 'The album')}</h3>
+            <p class="lb-now-meta">${esc(albumProject?.artist || '')}${
+              albumProject?.release_label ? ' · ' + esc(albumProject.release_label) : ''} · ${lineup.length} tracks</p>
+          </div>
+          <button class="lb-btn sm" type="button" data-src="youtube" data-ref="${esc(lineup[0].video_id)}"
+            data-title="${esc(lineup[0].title)}" data-item="${esc(lineup[0].title)}"
+            data-artist="${esc(albumProject?.artist || '')}" data-queue="album" data-qi="0">
+            Play the album</button>
+        </div>
+        <ol class="lb-tracks lb-tracks-album">
+          ${lineup.map((t, i) => `
+          <li>
+            <span class="lb-rank">${String(t.track_no || i + 1).padStart(2, '0')}</span>
+            <button class="lb-track" type="button" data-src="youtube" data-ref="${esc(t.video_id)}"
+              data-title="${esc(t.title)}"
+              data-credit="${esc(t.features && t.features !== '—' ? 'ft. ' + t.features : (albumProject?.artist || ''))}"
+              data-item="${esc(t.title)}" data-artist="${esc(albumProject?.artist || '')}"
+              data-queue="album" data-qi="${i}">
+              <img src="${esc(artThumb(t.video_id))}" alt="" loading="lazy">
+              <span class="lb-track-t">${esc(t.title)}
+                <small>${esc(t.features && t.features !== '—' ? 'ft. ' + t.features : (t.released || ''))}</small></span>
+              <span class="lb-track-ic" aria-hidden="true">▶</span>
+            </button>
+          </li>`).join('')}
+        </ol>
+      </div>` : ''}
     </div>
   </section>` : ''}
 
@@ -469,10 +521,17 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
     return null;
   }
 
-  // A 640px cut, about a third of the weight, for phones.
+  // Viewport question only — arming windows and scrub span still key off this.
   const small = () => window.innerWidth < SMALL;
-  let wasSmall = small();
-  const srcFor = v => `/img/scenes/${v.dataset.scene}${small() ? '-sm' : ''}.mp4`;
+
+  /* Every screen gets the full 720p cut. Phones used to get a 640px encode for
+     weight, but a modern phone screen is denser than 480p full-bleed: the moment
+     the clip took over from its 1920px still, the plate visibly fell apart —
+     scrub over the sharp still looked right, then the idle clip played soft.
+     The masters are 720p, so this is the best the footage can give. The small
+     cut now serves only genuinely constrained connections. */
+  const lowBandwidth = () => /^3g$/.test((navigator.connection || {}).effectiveType || '');
+  const srcFor = v => `/img/scenes/${v.dataset.scene}${lowBandwidth() ? '-sm' : ''}.mp4`;
 
   /* iOS will not paint a frame from a video that has never played, so a seek
      alone leaves the poster showing. One muted play/pause on the first touch
@@ -570,14 +629,9 @@ function bindFilm(view, { autoplayWhenIdle = true } = {}) {
     setTimeout(() => api.settle(), 0);
   });
 
-  // Crossing the phone/desktop line mid-session means every clip is the wrong
-  // cut. Drop them all and let the next sweep fetch the right one.
-  addEventListener('resize', () => {
-    if (small() === wasSmall) return;
-    wasSmall = small();
-    for (const v of vids) release(v);
-    armNearby();
-  }, { passive: true });
+  // The cut no longer depends on viewport width, so a resize only changes the
+  // arming geometry — re-sweep, nothing needs to be dropped.
+  addEventListener('resize', armNearby, { passive: true });
 
   let idleTimer = 0;
   let scrubbing = false;

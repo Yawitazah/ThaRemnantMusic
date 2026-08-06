@@ -26,6 +26,13 @@ export function render() {
   const albumAvg = album.length
     ? Math.round(album.reduce((s, t) => s + t.views, 0) / album.length) : 0;
 
+  /* The full lineup of the current album, playable straight through. The
+     `watch_videos` link chains the ids into one YouTube session, and each row
+     starts the chain AT that row, so play-through works from anywhere without
+     needing a player inside the dashboard. */
+  const albumProj = projects.find(p => p.kind === 'album' && p.track_count);
+  const albumRows = (store.album || []).filter(t => t.video_id);
+
   const projCard = p => `
     <a class="proj" href="#artists/${encodeURIComponent(p.artist)}">
       <div class="proj-art">
@@ -93,6 +100,33 @@ ${card(`
     music channel — same song, same week. That single result is the argument for everything else in
     this dashboard.
   </div>`)}
+
+${albumRows.length ? card(`
+  <div class="album-head">
+    <div>
+      <h2>${esc(albumProj?.title || 'The album')} — the lineup</h2>
+      <p class="muted sm">${esc(albumProj?.artist || 'BREED')}${
+        albumProj?.release_label ? ' · ' + esc(albumProj.release_label) : ''} ·
+        every track is on YouTube. Play from any row and it runs straight through.</p>
+    </div>
+    <a class="btn sm" target="_blank" rel="noopener"
+       href="https://www.youtube.com/watch_videos?video_ids=${albumRows.map(t => esc(t.video_id)).join(',')}">
+       ▶ Play the album</a>
+  </div>
+  <ol class="album-list">
+    ${albumRows.map((t, i) => `
+    <li>
+      <span class="album-no">${String(t.track_no || i + 1).padStart(2, '0')}</span>
+      <a class="album-row" target="_blank" rel="noopener"
+         href="https://www.youtube.com/watch_videos?video_ids=${
+           albumRows.slice(i).concat(albumRows.slice(0, i)).map(x => esc(x.video_id)).join(',')}">
+        <img src="https://i.ytimg.com/vi/${esc(t.video_id)}/mqdefault.jpg" alt="" loading="lazy">
+        <span class="album-t">${esc(t.title)}
+          <small>${esc(t.features && t.features !== '—' ? 'ft. ' + t.features : (t.released || ''))}</small></span>
+        <span class="album-v">${fmt(t.yt_views || 0)} views</span>
+      </a>
+    </li>`).join('')}
+  </ol>`) : ''}
 
 ${card(`
   <h2>The slate</h2>

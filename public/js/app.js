@@ -343,6 +343,18 @@ async function boot() {
     $('#foot-counts').textContent =
       `${s.total} tracks · ${store.playbook.length} playbook items · ${store.opps.length} opportunities`;
 
+    /* The freshness stamp is read off the data, never typed: the newest
+       updated_at across the scraped tables. A hardcoded date sat in this footer
+       saying "2 Aug" for days after the figures moved. */
+    const newest = [...store.catalog, ...store.album, ...store.channels]
+      .map(r => r.updated_at && Date.parse(r.updated_at) || 0)
+      .reduce((a, b) => Math.max(a, b), 0);
+    const fresh = $('#foot-fresh');
+    if (fresh) fresh.textContent = newest
+      ? `Streaming figures are manual pulls, last updated ${new Date(newest).toLocaleDateString('en-GB',
+          { day: 'numeric', month: 'short', year: 'numeric' })} · hub analytics are live.`
+      : 'Streaming figures are manual pulls · hub analytics are live.';
+
     draw();
     initBell();
     initAuth();

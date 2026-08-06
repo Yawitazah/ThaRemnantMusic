@@ -998,7 +998,34 @@ body.has-dock-soundcloud { padding-bottom:142px; }
 .pf-dock.is-big .pf-dock-video { width:100%; aspect-ratio:16/9; border-radius:12px; }
 .pf-dock.is-big .pf-dock-meta strong { font-size:1.05rem; white-space:normal; }
 .pf-dock.is-big .pf-dock-actions { justify-content:flex-end; }
-.pf-dock.is-big #pf-dock-expand { transform:rotate(180deg); }
+/* ---------- album lineup (Now tab) ----------
+   Compact rows, small sleeve to the side — a tracklist, not a wall of cards. */
+.album-head { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.album-list { list-style:none; margin:14px 0 0; padding:0; }
+.album-list li { display:flex; align-items:center; gap:12px; }
+.album-list li + li { border-top:1px solid var(--line); }
+.album-no { flex:none; width:2ch; font-variant-numeric:tabular-nums; color:var(--text-secondary); font-size:.82rem; }
+.album-row {
+  flex:1; min-width:0; display:flex; align-items:center; gap:12px;
+  padding:9px 8px 9px 0; border-radius:8px; color:inherit; text-decoration:none;
+}
+.album-row:hover { background:var(--surface-2); }
+.album-row img { width:46px; height:46px; border-radius:6px; object-fit:cover; flex:none; }
+.album-t { flex:1; min-width:0; font-weight:600; font-size:.92rem; }
+.album-t small {
+  display:block; font-weight:400; font-size:.76rem; color:var(--text-secondary);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.album-v { flex:none; font-size:.78rem; color:var(--text-secondary); font-variant-numeric:tabular-nums; }
+@media (max-width:560px) { .album-v { display:none; } }
+
+/* The expand control is two drawn icons: arrows out in the bar, arrows in when
+   the player is already big. Swapping beats rotating — a rotated expand icon
+   still reads as "expand". */
+#pf-dock-expand svg { display:block; }
+#pf-dock-expand .pf-ic-in { display:none; }
+.pf-dock.is-big #pf-dock-expand .pf-ic-out { display:none; }
+.pf-dock.is-big #pf-dock-expand .pf-ic-in { display:block; }
 @media (max-width:640px) { .pf-dock.is-big { padding:12px; } }
 
 /* Queue controls and the up-next line. */
