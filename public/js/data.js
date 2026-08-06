@@ -34,8 +34,9 @@ export const store = {
   myArtist: null, // artist this signed-in account belongs to, if any
 };
 
-// Viewing stays open to everyone. Signing in (magic link) unlocks editing:
-// admins edit everything, an artist account edits its own link hub.
+// The Command Center is team-only (see gate.js). Within it, admins edit
+// everything and an artist account edits its own link hub. The public label page,
+// the hubs and the artist pages stay open to everyone.
 export const isAdmin = () => store.isAdminUser;
 export const canEditHub = artist => store.isAdminUser || store.myArtist === artist;
 
@@ -121,6 +122,29 @@ export async function claimInvite(code) {
   if (error) throw error;
   await initSession();
   return data;
+}
+
+/* Forgotten password. Sends a recovery link back to /command, where gate.js sees
+   `type=recovery` in the URL and shows the set-a-new-password form.
+
+   Both this and the magic link go through Supabase's own mailer, which on this
+   project is rate limited to a couple of sends an hour and is what broke signups
+   before. If nothing arrives, the reliable way in is Supabase dashboard →
+   Authentication → Users, which does not touch app email at all. Wiring custom
+   SMTP (ZeptoMail, as the CRM does) is what makes this path dependable. */
+export async function requestPasswordReset(email) {
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: `${location.origin}/command`,
+  });
+  if (error) throw error;
+}
+
+/* Only valid while the recovery session from that link is active. The password
+   itself is typed by the person resetting it and is never stored anywhere else. */
+export async function setNewPassword(password) {
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) throw error;
+  await initSession();
 }
 
 export async function signOut() {
