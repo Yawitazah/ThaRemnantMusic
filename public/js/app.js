@@ -413,7 +413,14 @@ if (isCommand) {
      only stands down on an explicit true. RLS (migration 0013) is the other half;
      this alone would just be a screen over data anyone could still fetch. */
   document.body.classList.add('hub-mode');
-  import('./gate.js')
+  /* `?v=2` is a cache bust, not decoration. /js/gate.js was requested once before
+     it existed, the old SPA fallback answered 200 + HTML with no cache header, and
+     Cloudflare stored that HTML under the .js URL for four hours — so the import
+     kept receiving HTML and the gate could not load. The query string is a
+     different cache key, so this fetches clean. server.js reads url.pathname, so
+     the query is ignored server-side. The fallback itself now 404s missing assets,
+     which stops this happening again; bump the number if it ever recurs. */
+  import('./gate.js?v=2')
     .then(m => m.requireTeam())
     .then(ok => {
       if (!ok) return;   // gate.js has painted the sign-in screen
