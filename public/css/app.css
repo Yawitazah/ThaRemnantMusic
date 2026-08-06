@@ -1028,6 +1028,30 @@ body.has-dock-soundcloud { padding-bottom:142px; }
 .join-step.now  { border-color:var(--series-2); color:var(--series-2); }
 .join-step.done { border-color:var(--good); color:var(--good); }
 .join .hub-capture label { text-align:left; }
+/* ---------- team gate (/command) secondary actions ----------
+   These deliberately avoid `.btn`. `.hub-capture .btn` above paints every button
+   in that card solid orange, and it beats `.btn.ghost` on equal specificity by
+   sitting later in the file — so a "ghost" button came out as a third identical
+   orange block and the card read as three competing primary actions.
+
+   They were also inline-block inside a <p>, whose line-height is shorter than a
+   button, so the two wrapped onto each other and visibly overlapped. A flex row
+   that wraps fixes the collision and centres cleanly on a phone. */
+.gate-alt {
+  display:flex; flex-wrap:wrap; justify-content:center; align-items:center;
+  gap:10px 18px; margin:16px 0 0;
+}
+.gate-alt .gate-link, .gate-alt a {
+  background:none; border:0; padding:0; width:auto; font:inherit;
+  font-size:.86rem; color:var(--text-secondary);
+  text-decoration:underline; text-underline-offset:3px; cursor:pointer;
+}
+.gate-alt .gate-link:hover, .gate-alt a:hover { color:var(--text-primary); }
+/* A phone gets one action per line, so nothing is ambiguous to thumb. */
+@media (max-width:420px) {
+  .gate-alt { flex-direction:column; gap:12px; }
+}
+
 .join-list { margin:14px 0 0; padding-left:20px; }
 .join-list li { margin-bottom:13px; font-size:.92rem; line-height:1.5; }
 

@@ -88,11 +88,11 @@ function newPasswordScreen(msg = '') {
     }
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
-      await setNewPassword(f.password.value);
+      // Same reasoning as sign-in: never let the button sit spinning.
+      await withTimeout(setNewPassword(f.password.value), 9000);
       // Drop the recovery hash so a reload does not re-enter this screen.
       history.replaceState(null, '', '/command');
-      if (store.isTeam) location.reload();
-      else notOnTeam();
+      location.reload();
     } catch (err) {
       newPasswordScreen(err?.message || 'Could not save that password.');
     }
@@ -112,8 +112,9 @@ function forgotScreen(msg = '') {
           placeholder="you@example.com"></label>
       <button class="btn" type="submit">Send the reset link</button>
     </form>
-    <p class="muted sm" style="margin:12px 0 0">
-      <button class="btn ghost" id="gate-back" type="button">Back to sign in</button></p>
+    <div class="gate-alt">
+      <button class="gate-link" id="gate-back" type="button">Back to sign in</button>
+    </div>
   </section>`);
 
   view().querySelector('#gate-back').addEventListener('click', () => signInScreen());
@@ -151,9 +152,11 @@ function notOnTeam() {
     has not been linked to the label yet.</p>
     <p class="muted sm">If Zah gave you an invite code, claim it on
     <a href="/join">the join page</a> and this unlocks straight away.</p>
-    <div class="row" style="margin-top:14px">
+    <div class="row" style="margin-top:14px;justify-content:center">
       <a class="btn" href="/join">Claim an invite code</a>
-      <button class="btn ghost" id="gate-out" type="button">Sign out</button>
+    </div>
+    <div class="gate-alt">
+      <button class="gate-link" id="gate-out" type="button">Sign out</button>
     </div>
   </section>`);
   view().querySelector('#gate-out').addEventListener('click', async () => {
@@ -176,10 +179,11 @@ function signInScreen(msg = '') {
         <input type="password" name="password" required autocomplete="current-password"></label>
       <button class="btn" type="submit">Sign in</button>
     </form>
-    <p class="muted sm" style="margin:12px 0 0">
-      <button class="btn ghost" id="gate-forgot-btn" type="button" style="margin-right:8px">Forgot my password</button>
-      <button class="btn ghost" id="gate-link" type="button" style="margin-right:8px">Email me a link instead</button>
-      <a href="/join">I have an invite code</a></p>
+    <div class="gate-alt">
+      <button class="gate-link" id="gate-forgot-btn" type="button">Forgot my password</button>
+      <button class="gate-link" id="gate-link" type="button">Email me a link instead</button>
+      <a href="/join">I have an invite code</a>
+    </div>
   </section>`);
 
   view().querySelector('#gate-forgot-btn').addEventListener('click', () => forgotScreen());
@@ -189,10 +193,18 @@ function signInScreen(msg = '') {
     const f = e.target, btn = f.querySelector('button[type=submit]');
     btn.disabled = true; btn.textContent = 'One moment…';
     try {
-      await signInPassword(f.email.value.trim(), f.password.value);
-      // signInPassword already re-ran initSession, so the verdict is current.
-      if (store.isTeam) location.reload();   // clean boot with the real session
-      else notOnTeam();
+      /* Time-boxed on purpose. signInPassword re-runs initSession, which fires
+         three RPCs with no timeout of their own — on a phone that could sit there
+         forever and the button just read "One moment…" until the page was
+         refreshed by hand. A wrong password still rejects fast and lands below. */
+      await withTimeout(signInPassword(f.email.value.trim(), f.password.value), 9000);
+      /* Reload on the session existing, NOT on store.isTeam. isTeam depends on
+         those same RPCs having finished; the reload re-runs the gate check, which
+         is authoritative and has its own timeout. getSession reads local storage,
+         so it cannot hang here. */
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) location.reload();
+      else signInScreen('Could not sign in. Check the email and password, then try again.');
     } catch (err) {
       signInScreen(err?.message || 'That did not work. Check the email and password.');
     }

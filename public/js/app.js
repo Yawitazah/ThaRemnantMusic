@@ -242,10 +242,15 @@ function initAccount() {
     if (e.target.closest('#acct-crm')) { e.target.closest('#acct-crm').href = crmSsoUrl(); return; }
     if (e.target.closest('#acct-out')) {
       e.preventDefault();
-      await signOut();
       panel.hidden = true;
-      renderAccount(); renderAuth(); draw();
-      toast('Signed out');
+      toast('Signing out…');
+      try { await signOut(); } catch {}
+      /* Reload rather than re-render. /command is team-only now, so a signed-out
+         dashboard is not a read-only dashboard — the internal tables 401 and the
+         tabs go blank. Reloading hands control back to the gate, which is the
+         only thing that should be on screen without a session. Re-rendering in
+         place is what left the old screen up until a manual refresh. */
+      location.replace('/command');
     }
   });
   renderAccount();
