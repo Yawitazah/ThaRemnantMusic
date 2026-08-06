@@ -279,9 +279,25 @@ const server = createServer(async (req, res) => {
       info = await stat(file);
       if (!info.isFile()) throw new Error('not a file');
     } catch {
-      // SPA fallback
+      /* A missing FILE has to 404. Handing back index.html for it was actively
+         harmful once Cloudflare went in front of this server: Cloudflare caches by
+         URL extension, and because this fallback sent 200 + HTML with no
+         cache-control, Cloudflare stored that HTML under `/js/gate.js` with
+         max-age=14400 and served it for four hours. The origin was correct the
+         whole time and /command was broken anyway. Any missing asset could poison
+         the edge the same way.
+
+         A 200 also hides deploy gaps: the file looks present and only its content
+         type gives it away, which is why deployed assets have to be checked by
+         content_type and never by status code.
+
+         Extensionless paths are app routes, so they still get the shell. */
+      if (extname(pathname)) {
+        res.writeHead(404, { 'content-type': 'text/plain', 'cache-control': 'no-store' });
+        return res.end('Not found');
+      }
       const body = await readFile(join(ROOT, 'index.html'));
-      res.writeHead(200, { 'content-type': TYPES['.html'] });
+      res.writeHead(200, { 'content-type': TYPES['.html'], 'cache-control': 'no-cache' });
       return res.end(body);
     }
 
