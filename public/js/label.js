@@ -98,12 +98,12 @@ export async function boot() {
      and the label's staff belong in the Command Center, not in front of fans. */
   /* The album lineup comes through a definer RPC because album_tracks itself is
      team-only; the function exposes exactly the columns a fan needs and no more. */
-  const rpc = name =>
-    fetch(`${REST}/rpc/${name}`, { method: 'POST', headers: HEADERS, body: '{}' })
+  const rpc = (name, args = {}) =>
+    fetch(`${REST}/rpc/${name}`, { method: 'POST', headers: HEADERS, body: JSON.stringify(args) })
       .then(r => (r.ok ? r.json() : []))
       .catch(() => []);
 
-  const [profiles, releases, projects, catalog, channels, links, settings, albumTracks] = await Promise.all([
+  const [profiles, releases, projects, catalog, channels, links, settings] = await Promise.all([
     sel('artist_profiles', 'select=*&order=sort_order'),
     sel('releases', 'select=*&order=year.desc,sort_order'),
     sel('projects', 'select=*&order=priority'),
@@ -111,7 +111,6 @@ export async function boot() {
     sel('channels', 'select=*'),
     sel('hub_links', 'select=*&active=eq.true&order=sort_order'),
     sel('settings', 'select=*&key=eq.founding'),
-    rpc('album_tracklist'),
   ]);
 
   // Who founded the label is stated once, in settings, so no page invents its
@@ -147,6 +146,12 @@ export async function boot() {
      from the projects row so the page never invents an album title. */
   const albumProject = projects.find(p => p.kind === 'album' && p.artist === pushing?.artist)
     || projects.find(p => p.kind === 'album' && p.track_count);
+  /* Fetched after the projects, because the tracklist is per artist now and the
+     artist is not known until we know which album is being featured. One extra
+     round trip, versus handing the wrong artist's songs to a fan. */
+  const albumTracks = albumProject
+    ? await rpc('album_tracklist', { p_artist: albumProject.artist })
+    : [];
   const lineup = (albumTracks || []).filter(t => t.video_id);
 
   /* Both lists on this page are playlists: start anywhere and the rest follows. */

@@ -11,6 +11,7 @@ import { esc, fmt } from './ui.js';
 import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, isPlayableLink, rollAll } from './icons.js';
 import { SRC_NAME, ytThumb, playableArt, playableFor, queueFrom, hydrateArt, dockMarkup, initDock } from './dock.js';
 import { mountTeamBar } from './teambar.js';
+import { wireShare } from './share.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -24,8 +25,8 @@ const sel = (table, query) =>
     .then(r => (r.ok ? r.json() : []))
     .catch(() => []);
 
-const rpc = fn =>
-  fetch(`${REST}/rpc/${fn}`, { method: 'POST', headers: HEADERS, body: '{}' })
+const rpc = (fn, args = {}) =>
+  fetch(`${REST}/rpc/${fn}`, { method: 'POST', headers: HEADERS, body: JSON.stringify(args) })
     .then(r => (r.ok ? r.json() : {}))
     .catch(() => ({}));
 
@@ -86,7 +87,8 @@ export async function boot(slug) {
     sel('catalog', 'select=*&order=views.desc'),
     rpc('artist_reach'),
     sel('projects', `artist=eq.${enc}&order=priority`),
-    rpc('album_tracklist'),
+    // Scoped to THIS artist. Unscoped, it handed Breed's nine songs to everyone.
+    rpc('album_tracklist', { p_artist: a }),
   ]);
   const reach = reachMap[a];
 
@@ -135,9 +137,15 @@ export async function boot(slug) {
      sits below one from 2019 and the record never reads as a record. So the
      lineup comes straight from album_tracks (via the definer RPC) and renders as
      an ordered list, only on the artist the album belongs to. */
-  const albumProject = (projects || []).find(p => p.kind === 'album' && p.track_count)
-    || (projects || []).find(p => p.kind === 'album');
-  const lineup = albumProject ? (albumTracks || []).filter(t => t.video_id) : [];
+  /* Tracks first, project second. Deriving the project first and then trusting it
+     to have tracks is what put Breed's album under King Konnect's heading: he has
+     an album project in production with no lineup, and the tracklist was unscoped.
+     No tracks for this artist means no section, whatever projects they have. */
+  const lineup = (albumTracks || []).filter(t => t.video_id);
+  const albumProject = lineup.length
+    ? ((projects || []).find(p => p.kind === 'album' && p.track_count)
+       || (projects || []).find(p => p.kind === 'album'))
+    : null;
   if (lineup.length) {
     QUEUES.album = lineup.map(t => ({
       src: 'youtube', ref: t.video_id, title: t.title, item: t.title,
@@ -145,7 +153,7 @@ export async function boot(slug) {
     }));
   }
 
-  const albumSection = () => lineup.length ? `
+  const albumSection = () => lineup.length && albumProject ? `
     <section class="pf-section">
       <div class="pf-album-head">
         <div>
@@ -212,6 +220,9 @@ export async function boot(slug) {
       <div class="pf-actions">
         <button class="btn pf-follow" id="pf-follow" type="button">Follow</button>
         <a class="btn ghost" href="/a/${esc(slug)}">All links</a>
+        <button class="btn ghost" id="pf-share" type="button"
+          data-share-url="/artist/${esc(slug)}"
+          data-share-title="${esc(a)} — Tha Remnant Music Group">Share</button>
       </div>
       ${socialRow(socials.map(l => ({ label: l.label, url: l.url, id: l.id })),
         { size: 20, cls: 'social-row social-row-hero' })}
@@ -345,6 +356,8 @@ ${dockMarkup()}`;
   if (!sessionStorage.getItem(seen)) { sessionStorage.setItem(seen, '1'); track(a, 'view'); }
 
   hydrateArt(view);
+  // A share is a real signal, so it counts as a click rather than vanishing.
+  wireShare(view, url => track(a, 'click', { item: 'Share', label: `Share · ${url}` }));
   mountTeamBar({ artist: a, slug, here: 'profile' });
 
   /* Recorded from the player rather than from the click, so a track the queue

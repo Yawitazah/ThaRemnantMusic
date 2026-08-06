@@ -11,6 +11,7 @@ import { esc, fmt } from './ui.js';
 import { socialRow, socialIcon, iconFor, isSocialLink, isListedLink, isStoreLink, isPlayableLink, rollAll } from './icons.js';
 import { SRC_NAME, playableArt, playableFor, queueFrom, hydrateArt, dockMarkup, initDock } from './dock.js';
 import { mountTeamBar } from './teambar.js';
+import { wireShare } from './share.js';
 
 const REST = `${SUPABASE_URL}/rest/v1`;
 const HEADERS = {
@@ -151,6 +152,12 @@ export async function boot(slug) {
     ${subs ? `<p class="hub-subs"><span data-roll="${subs}">${fmt(subs)}</span> subscribers</p>` : ''}
     ${socialRow(socials.map(l => ({ label: l.label, url: l.url, id: l.id })),
       { size: 20, cls: 'social-row social-row-hero' })}
+    <!-- The artist's own link, handed out from their phone in two taps. -->
+    <button class="hub-share" id="hub-share" type="button"
+      data-share-url="/a/${esc(slug)}"
+      data-share-title="${esc(a)} — all my links">
+      <span class="share-label">Share my link</span>
+    </button>
   </header>
 
   ${profile.is_team_member && profile.bio
@@ -225,6 +232,7 @@ ${dockMarkup()}`;
   }
 
   hydrateArt(view);
+  wireShare(view, url => track(a, 'click', { item: 'Share', label: `Share · ${url}` }));
   mountTeamBar({ artist: a, slug, here: 'hub' });
 
   /* Recorded from the player, so a track the queue started counts too. */

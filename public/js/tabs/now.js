@@ -31,7 +31,10 @@ export function render() {
      starts the chain AT that row, so play-through works from anywhere without
      needing a player inside the dashboard. */
   const albumProj = projects.find(p => p.kind === 'album' && p.track_count);
-  const albumRows = (store.album || []).filter(t => t.video_id);
+  // Scoped by artist: album_tracks now records whose album it is, so a second
+  // artist's lineup can never appear under this heading.
+  const albumRows = (store.album || []).filter(t =>
+    t.video_id && (!albumProj || !t.artist || t.artist === albumProj.artist));
 
   const projCard = p => `
     <a class="proj" href="#artists/${encodeURIComponent(p.artist)}">

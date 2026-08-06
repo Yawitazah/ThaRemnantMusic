@@ -206,6 +206,14 @@ function renderAccount() {
       <span class="acct-label">Go to</span>
       <a class="acct-item is-here" href="/command"><span class="acct-ic">◆</span>
         <span>Command Center<small>You are here</small></span></a>
+      ${/* The topbar's quick buttons are display:none under 720px, so on a phone
+            this menu was the ONLY route to an artist page — and the links were
+            buried in a separate group below. They belong in Go to. */''}
+      ${primary && store.isTeam ? `
+      <a class="acct-item" href="/artist/${esc(slugFor(primary))}"><span class="acct-ic">◉</span>
+        <span>Artist profile<small>${esc(primary)} — releases, tour, about</small></span></a>
+      <a class="acct-item" href="/a/${esc(slugFor(primary))}"><span class="acct-ic">◎</span>
+        <span>Link hub<small>${esc(primary)} — the link to share</small></span></a>` : ''}
       ${labelLink}
       <a class="acct-item" id="acct-crm" href="${esc(crmSsoUrl())}" target="_blank" rel="noopener">
         <span class="acct-ic">◈</span>

@@ -781,6 +781,16 @@ button.hub-btn { width:100%; cursor:pointer; font:inherit; text-align:left; }
    than redefining them — a duplicate set of those classes fought the originals,
    since both target the same elements and the later block wins. Only the two
    genuinely new pieces live here: the header row and the play-all button. */
+/* Share control on the link hub: the artist's own link, two taps from their
+   phone. Sits under the socials in the header, deliberately quieter than the
+   link buttons below it so it reads as an action, not another destination. */
+.hub-share {
+  margin:14px auto 0; display:block; cursor:pointer;
+  border:1px solid rgba(244,236,227,.34); background:transparent; color:var(--paper);
+  border-radius:99px; padding:9px 22px; font:inherit; font-size:.85rem; font-weight:600;
+}
+.hub-share:hover { border-color:var(--paper); }
+
 .pf-album-head {
   display:flex; align-items:center; justify-content:space-between;
   gap:14px; flex-wrap:wrap; margin-bottom:12px;
