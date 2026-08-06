@@ -9,7 +9,7 @@
 
 import { store, initSession, signUpPassword, signInPassword, claimInvite, isAdmin, sb, crmSsoUrl } from './data.js';
 import { esc } from './ui.js';
-import { setupButtonsHtml, wireSetupButtons } from './install.js';
+import { setupButtonsHtml, wireSetupButtons, isStandalone, pushState } from './install.js';
 
 const view = () => document.getElementById('view');
 
@@ -115,7 +115,24 @@ function inviteStep(msg = '') {
 
 /* ---------- step 3: set up ---------- */
 
-function doneStep() {
+/* Shown ONCE, right after claiming an invite. A returning team member landing on
+   /join is trying to get to work, not to onboard again, so anyone who has
+   finished set-up (running the installed app, or notifications already on) or
+   has simply seen this screen before goes straight to the Command Center. The
+   same install and notification buttons live on the Fans tab, so skipping here
+   never strands anyone who dismissed it half-done. */
+const SETUP_SEEN = 'remnant-setup-seen';
+
+async function doneStep() {
+  const push = await pushState().catch(() => 'off');
+  let seen = false;
+  try { seen = !!localStorage.getItem(SETUP_SEEN); } catch {}
+  if (isStandalone() || push === 'on' || seen) {
+    location.replace('/command');
+    return;
+  }
+  try { localStorage.setItem(SETUP_SEEN, '1'); } catch {}
+
   const who = store.myArtist || (isAdmin() ? 'Label admin' : 'Team member');
   const slugMap = Object.fromEntries((store.profiles || []).map(p => [p.artist, p.slug]));
   const mySlug = slugMap[store.myArtist];
@@ -127,7 +144,7 @@ function doneStep() {
     <p class="muted sm" style="text-align:center;margin:0 0 4px">Two taps and you are set up.</p>
     ${setupButtonsHtml()}
     <div class="hub-links" style="margin-top:18px">
-      <a class="hub-btn" href="/#artists"><span class="hub-ic">DB</span><span>Open the dashboard<small>your stats and everyone else's</small></span><span class="hub-arrow">→</span></a>
+      <a class="hub-btn" href="/command#artists"><span class="hub-ic">DB</span><span>Open the dashboard<small>your stats and everyone else's</small></span><span class="hub-arrow">→</span></a>
       ${mySlug ? `<a class="hub-btn" href="/a/${esc(mySlug)}"><span class="hub-ic">HUB</span><span>See your public hub<small>the link you share</small></span><span class="hub-arrow">→</span></a>` : ''}
       <a class="hub-btn" href="${esc(crmSsoUrl())}" target="_blank" rel="noopener"><span class="hub-ic">CRM</span><span>Open the label CRM<small>signs you in automatically</small></span><span class="hub-arrow">→</span></a>
     </div>

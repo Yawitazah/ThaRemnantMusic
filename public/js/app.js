@@ -172,16 +172,17 @@ function renderAccount() {
     <a class="acct-item" href="/"><span class="acct-ic">◇</span>
       <span>Label page<small>The public page for fans. Share this one.</small></span></a>`;
 
+  /* Barely reachable: without a session the gate owns /command and this chrome
+     never mounts, and losing a session mid-visit reloads to the gate. If it does
+     flash for an instant mid-transition, it offers nothing but the public page —
+     the gate is the one sign-in surface, so no second "sign in / join" entry. */
   if (!store.session) {
     panel.innerHTML = `
       <div class="acct-head">
         <strong>Not signed in</strong>
-        <span class="muted sm">Viewing the public dashboard.</span>
       </div>
       <div class="acct-group">
         ${labelLink}
-        <a class="acct-item" href="/join"><span class="acct-ic">→</span>
-          <span>Team sign in or join<small>Artists and label staff</small></span></a>
       </div>`;
     return;
   }
@@ -243,17 +244,22 @@ function initAccount() {
     if (e.target.closest('#acct-out')) {
       e.preventDefault();
       panel.hidden = true;
-      toast('Signing out…');
-      try { await signOut(); } catch {}
-      /* Reload rather than re-render. /command is team-only now, so a signed-out
-         dashboard is not a read-only dashboard — the internal tables 401 and the
-         tabs go blank. Reloading hands control back to the gate, which is the
-         only thing that should be on screen without a session. Re-rendering in
-         place is what left the old screen up until a manual refresh. */
-      location.replace('/command');
+      await signOutToGate();
     }
   });
   renderAccount();
+}
+
+/* THE sign-out path. Every control that signs out goes through here, and it
+   always ends in a reload that hands the screen back to the gate. /command is
+   team-only: a signed-out dashboard is not a read-only dashboard, it is a broken
+   one — the internal tables 401 and the tabs go blank. Re-rendering in place
+   (which the footer link used to do) left stale chrome up, including the avatar
+   initial, until something else happened to redraw it. */
+async function signOutToGate() {
+  toast('Signing out…');
+  try { await signOut(); } catch {}
+  location.replace('/command');
 }
 
 /* Wipe every piece of state this device holds — stored session, service-worker
@@ -286,18 +292,17 @@ function renderAuth() {
     el.innerHTML = `<span class="muted">${esc(who)}${isAdmin() ? ' · admin' : store.myArtist ? ' · ' + esc(store.myArtist) : ''}</span>
       · <a href="#" id="auth-out">Sign out</a>`;
   } else {
-    el.innerHTML = `<a href="/join">Team sign-in / join</a>`;
+    // Signed out, the gate is the sign-in surface — no duplicate link here.
+    el.innerHTML = '';
   }
-  el.innerHTML += ` · <a href="#" id="auth-reset" title="Sign out, clear the offline copy and reload">Reset this device</a>`;
+  el.innerHTML += `${el.innerHTML ? ' · ' : ''}<a href="#" id="auth-reset" title="Sign out, clear the offline copy and reload">Reset this device</a>`;
 }
 
 function initAuth() {
   $('#foot-auth').addEventListener('click', async e => {
     if (e.target.id === 'auth-out') {
       e.preventDefault();
-      await signOut();
-      renderAuth(); draw();
-      toast('Signed out');
+      await signOutToGate();
     }
     if (e.target.id === 'auth-reset') {
       e.preventDefault();
@@ -305,13 +310,15 @@ function initAuth() {
       await hardReset();
     }
   });
-  sb.auth.onAuthStateChange(async (_ev, session) => {
+  /* The dashboard only ever runs with a team session (the gate guarantees it),
+     so the one transition that matters here is losing that session — a sign-out
+     in another tab, a revoked account, an expired refresh token. All of them get
+     the same answer as the sign-out buttons: back to the gate. Anything else
+     (TOKEN_REFRESHED, repeat SIGNED_IN on focus) changes nothing worth redrawing. */
+  sb.auth.onAuthStateChange((_ev, session) => {
     const had = !!store.session;
     store.session = session;
-    if (!!session !== had) {
-      await initSession();
-      renderAuth(); renderAccount(); draw();
-    }
+    if (had && !session) location.replace('/command');
   });
   renderAuth();
 }
