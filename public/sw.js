@@ -17,6 +17,26 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
 
+  /* Force code off the network, bypassing the browser's HTTP cache.
+     server.js sends `no-cache` for js/css, but Cloudflare's Browser Cache TTL was
+     rewriting that to max-age=14400, so browsers pinned modules for four hours.
+     Setting Cloudflare to respect origin headers fixes new visitors, but it does
+     NOT evict copies already stored — and a stale module against a fresh one is
+     not a slow page, it is a broken one: a cached data.js missing an export its
+     importer now needs throws SyntaxError and the app never boots.
+
+     This heals those clients without anyone clearing anything, and costs nothing
+     we were not already paying, since the origin declares these uncacheable. The
+     SW script itself is exempt from the HTTP cache (updateViaCache 'imports'), so
+     this reaches browsers that are holding a stale everything-else. */
+  const u = new URL(req.url);
+  if (u.origin === location.origin && /\.(js|css)$/.test(u.pathname)) {
+    e.respondWith(
+      fetch(req, { cache: 'reload' }).catch(() => fetch(req))
+    );
+    return;
+  }
+
   if (req.mode === 'navigate') {
     // Only the Command Center is a valid offline shell — it is what the installed
     // app opens (manifest start_url). Hub pages (/a/{slug}), the label page and
