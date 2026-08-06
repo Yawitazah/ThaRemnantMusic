@@ -93,6 +93,110 @@ async function pushRound() {
 }
 
 setInterval(() => { pushRound().catch(e => console.error('[push]', e.message)); }, 60_000);
+
+/* ---------- nightly YouTube refresh ----------
+   The streaming figures used to be pulled by hand, and the footer said "scraped
+   2 Aug" for days after they moved. This closes that.
+
+   It is the official API, not a scrape: one request per 50 video ids answers
+   "how many views does each of these have", for any public video, no matter who
+   owns the channel. So there is no per-artist setup and multiple channels per
+   artist cost nothing extra — the whole catalog is 2 requests, plus 1 per channel
+   handle, against a free quota of 10,000 units a day. Scraping the pages would
+   mean fighting consent walls and markup that changes without notice.
+
+   Writes go through yt_apply(), a definer function gated on the same shared
+   secret push_claim() uses, so the server never needs a service-role key. */
+const YT_KEY = process.env.YOUTUBE_API_KEY || '';
+const YT_HOUR = Number(process.env.YT_REFRESH_HOUR ?? 7);   // 07:00 UTC ≈ 3am ET
+let ytLastRun = '';
+
+const chunk = (arr, n) =>
+  Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+
+async function ytRefresh() {
+  if (!YT_KEY) return;
+
+  const ids = (await (await rpc('yt_video_ids', {})).json()).map(r => r.video_id);
+  const handles = (await (await rpc('yt_handles', {})).json()).map(r => r.handle);
+
+  /* 50 is the API's hard maximum per call and each call costs 1 unit, so the
+     whole catalogue is a rounding error against the daily quota. */
+  const videos = [];
+  for (const group of chunk(ids, 50)) {
+    const url = 'https://www.googleapis.com/youtube/v3/videos'
+      + `?part=statistics&id=${group.join(',')}&key=${YT_KEY}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (!res.ok) throw new Error(`videos.list HTTP ${res.status}`);
+    const { items = [] } = await res.json();
+    // A private, deleted or region-blocked video simply is not in `items`, which
+    // is why yt_apply only ever raises a count and never clears one.
+    for (const it of items) {
+      const views = Number(it.statistics?.viewCount || 0);
+      if (views > 0) videos.push({ video_id: it.id, views });
+    }
+  }
+
+  /* forHandle takes one handle per call, so this is one unit per channel. */
+  const channels = [];
+  for (const handle of handles) {
+    const url = 'https://www.googleapis.com/youtube/v3/channels'
+      + `?part=statistics&forHandle=${encodeURIComponent(handle)}&key=${YT_KEY}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (!res.ok) continue;                       // one bad handle must not sink the run
+    const s = (await res.json()).items?.[0]?.statistics;
+    if (!s) continue;
+    channels.push({
+      handle,
+      subs: Number(s.subscriberCount || 0),
+      videos: Number(s.videoCount || 0),
+    });
+  }
+
+  const res = await rpc('yt_apply', { p_secret: PUSH_SECRET, p_videos: videos, p_channels: channels });
+  if (!res.ok) throw new Error(`yt_apply HTTP ${res.status} ${await res.text()}`);
+  const n = await res.json();
+  console.log(`[yt] ${videos.length} videos + ${channels.length} channels read; `
+    + `updated catalog ${n.catalog}, album ${n.album_tracks}, channels ${n.channels}`);
+}
+
+/* Checked hourly rather than scheduled with cron, because Railway restarts on
+   every deploy and a process-lifetime timer would drift with it. The date stamp
+   makes the run idempotent: at most one per day, whenever the container happens
+   to be up at that hour. */
+function ytTick() {
+  if (!YT_KEY) return;
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  if (now.getUTCHours() !== YT_HOUR || ytLastRun === today) return;
+  ytLastRun = today;
+  ytRefresh().catch(e => { console.error('[yt]', e.message); });
+}
+setInterval(ytTick, 10 * 60_000);
+ytTick();
+
+/* Manual trigger, so the job can be proved without waiting for 3am. Gated on the
+   same shared secret as the write itself, so it is not a public button. */
+async function ytManual(req, res, url) {
+  if (url.searchParams.get('secret') !== PUSH_SECRET) {
+    res.writeHead(403, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify({ ok: false, error: 'forbidden' }));
+  }
+  if (!YT_KEY) {
+    res.writeHead(503, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify({ ok: false, error: 'YOUTUBE_API_KEY is not set' }));
+  }
+  try {
+    await ytRefresh();
+    ytLastRun = new Date().toISOString().slice(0, 10);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+  } catch (e) {
+    res.writeHead(502, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: false, error: e.message }));
+  }
+}
+
 const SITE = process.env.SITE_URL || 'https://tharemnant.com';
 
 const HUBS = {
@@ -136,6 +240,9 @@ const server = createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'text/plain' });
       return res.end('ok');
     }
+
+    // Run the YouTube refresh now instead of waiting for the nightly hour.
+    if (pathname === '/api/yt/refresh') return ytManual(req, res, url);
 
     // The browser needs the public VAPID key to create a push subscription.
     if (pathname === '/api/push/key') {
