@@ -407,7 +407,23 @@ const profileSlug = location.pathname.match(/^\/artist\/([\w-]+)\/?$/)?.[1];
 const isJoin = /^\/join\/?$/.test(location.pathname);
 const isCommand = /^\/command\/?$/.test(location.pathname);
 if (isCommand) {
-  initDashboard();
+  /* The Command Center is team-only. Chrome stays hidden behind `hub-mode` until
+     the team check passes, so someone who just typed the URL never sees even the
+     shape of the dashboard, and a slow or broken check fails CLOSED — the gate
+     only stands down on an explicit true. RLS (migration 0013) is the other half;
+     this alone would just be a screen over data anyone could still fetch. */
+  document.body.classList.add('hub-mode');
+  import('./gate.js')
+    .then(m => m.requireTeam())
+    .then(ok => {
+      if (!ok) return;   // gate.js has painted the sign-in screen
+      document.body.classList.remove('hub-mode');
+      initDashboard();
+    })
+    .catch(() => {
+      $('#view').innerHTML = '<div class="loading">Could not check this device. '
+        + 'Reload to try again.</div>';
+    });
 } else {
   document.body.classList.add('hub-mode');
   const load = isJoin

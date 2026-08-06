@@ -34,7 +34,7 @@ Everything a new session needs to continue. Written 2026-08-04.
 | Page | URL |
 |---|---|
 | **Label landing page (fans)** | `/` (and `/label`, kept as an alias) |
-| **Command Center (team only)** | `/command` |
+| **Command Center (team sign-in required)** | `/command` |
 | BREED | `/a/breed` · `/artist/breed` |
 | King Konnect | `/a/kingkonnect` · `/artist/kingkonnect` |
 | JayThaRealist | `/a/jay` · `/artist/jay` |
@@ -55,6 +55,38 @@ Command Center moved to `/command`. Two rules came out of that move:
   now ships the public copy as its default, because that default is what any
   unrecognised path returns. Putting "budget and ledger" back in `index.html`
   would leak it into the share preview for tharemnant.com itself.
+
+## The Command Center is closed to the public (2026-08-05)
+
+It used to render for anyone who typed the URL. `/command` now requires a signed-in
+account that `is_team()` recognises. **The lock has two halves and both must stay:**
+
+1. **UI** — `public/js/gate.js`, called from the `/command` branch of `app.js`.
+   `hub-mode` hides the dashboard chrome until the check passes, and it **fails
+   closed**: the gate only stands down on an explicit `true`, so a hung or failed
+   auth call shows the sign-in screen rather than the dashboard. No dashboard data
+   is fetched at all until the check passes — `loadAll()` sits behind it.
+2. **RLS** — migration `0014_lock_internal_tables.sql`. This is the half that
+   matters, because **the Supabase anon key ships inside the page**: a screen you
+   cannot see is not data you cannot fetch. Ten internal tables moved from
+   `SELECT` for `anon` to `is_team()`: `budget_lines`, `weekly_snapshots`,
+   `opportunities`, `playbook_items`, `album_tracks`, `prior_catalog`, `platforms`,
+   `roster`, `zah_tracks`, `name_collisions`. Anon now gets **401** on all ten.
+
+Verified three ways: anon → 401 internal / 200 public; signed-in non-team → 0 rows
+internal, public intact; `zahbrandsolutions@gmail.com` (in `admins`) → all ten
+readable, so the dashboard still loads fully.
+
+**Left public on purpose**, because the label page, hubs and artist pages read them:
+`artist_profiles`, `releases`, `projects`, `catalog`, `channels`, `hub_links`,
+`settings`, `tour_dates`, `discovered_on`, `team_members`. `projects` was checked
+column by column and holds no money — **if financial columns are ever added to
+`projects`, revisit that.**
+
+Who can get in today: **only `zahbrandsolutions@gmail.com`** (the one row in
+`admins`). `artist_users` is empty and Byron's `team_members` row has no
+`owner_email`, so everyone else is locked out until they claim an invite code at
+`/join`, which is the intended path.
 
 Anything that used to point at `/` for the dashboard had to move to `/command`:
 the account menu, `teambar.js`, the manifest `start_url`, the push notification
