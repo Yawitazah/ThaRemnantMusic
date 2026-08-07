@@ -12,6 +12,11 @@ let editorOpen = false;
 
 export function setArg(name) { if (name) current = name; }
 
+/* Named to match the Artists tab so app.js's draw() can read back whichever
+   person a tab is showing and write it into the URL, without knowing which tab
+   it is talking to. Here it is a team member rather than a recording artist. */
+export const currentArtist = () => current;
+
 const list = () => (store.team || []);
 
 const ago = iso => {

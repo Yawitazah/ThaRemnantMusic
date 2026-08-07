@@ -42,7 +42,14 @@ function draw() {
   const view = old.cloneNode(false);
   old.replaceWith(view);
   const mod = TABS[currentTab];
-  if (currentArg && mod.setArg) mod.setArg(currentArg);
+  /* Consume the deep-link argument ONCE. Re-applying it on every draw is what
+     made the artist switcher look broken: arriving at #artists/BREED (from the
+     team bar, or from an artist page) left currentArg set, so picking a different
+     artist set the tab's state and then draw() immediately forced it back to
+     BREED. It only freed up after visiting another tab, because a tab click is
+     what cleared currentArg. The tab owns its own state after the first render;
+     the URL is written back from that state below. */
+  if (currentArg && mod.setArg) { mod.setArg(currentArg); currentArg = null; }
   view.innerHTML = mod.render();
   window.scrollTo({ top: 0, behavior: 'instant' });
   mod.bind?.(view, draw);
@@ -54,7 +61,12 @@ function draw() {
   const bar = document.querySelector('.tabs');
   const act = bar?.querySelector('.tab.is-active');
   if (bar && act) bar.scrollLeft = act.offsetLeft - (bar.clientWidth - act.offsetWidth) / 2;
-  history.replaceState(null, '', '#' + currentTab + (currentArg ? '/' + encodeURIComponent(currentArg) : ''));
+  /* The URL follows whatever the tab is actually showing, read back from the tab
+     rather than from currentArg (now cleared). That keeps deep links working, keeps
+     a refresh on the artist you were looking at, and means the team bar's
+     #artists/{name} links still land correctly. */
+  const urlArg = mod.currentArtist?.() || null;
+  history.replaceState(null, '', '#' + currentTab + (urlArg ? '/' + encodeURIComponent(urlArg) : ''));
   // The topbar links follow whichever artist is on screen, so they are
   // refreshed whenever the view changes.
   renderAccount();
